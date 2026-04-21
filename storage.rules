@@ -1,0 +1,13 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /tricks/{allPaths=**} {
+      // Tricks and hike media are publicly readable
+      allow read: if true;
+      // Only authenticated users can upload; enforce 75 MB limit
+      allow create, update: if request.auth != null
+        && request.resource.size < 75 * 1024 * 1024;
+      allow delete: if request.auth != null;
+    }
+  }
+}
