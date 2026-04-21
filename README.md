@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Caia
 
-## Getting Started
+A personal web app for tracking the training journey of Caia, a Nova Scotia Duck Tolling Retriever. Log tricks, hikes, and training sessions — with photos and videos.
 
-First, run the development server:
+**Live:** [caia.andreashagman.no](https://caia.andreashagman.no)
+
+---
+
+## Tech stack
+
+- **Next.js 16** (App Router, TypeScript)
+- **Firebase** — Auth, Firestore, Storage
+- **Resend** — transactional email for invites
+- **Tailwind CSS** + **shadcn/ui**
+- **PWA** — installable on mobile
+
+---
+
+## Features
+
+| Area | Details |
+|------|---------|
+| Public site | Landing page, tricks gallery, photo/video gallery, about page |
+| Tricks | Create, edit, and track tricks with status, difficulty, media uploads |
+| Training logs | Per-session notes linked to tricks |
+| Hikes | Log hikes with route, distance, notes, and photos |
+| Dashboard | Owner-only management UI with sub-navigation |
+| Auth | Email + password sign-in, forgot password, invite-only registration |
+| Invites | Owner sends email invite via Resend → invitee registers at `/register` with role auto-assigned |
+
+---
+
+## Local setup
+
+### 1. Clone and install
+
+```bash
+git clone <repo-url>
+cd caia-app
+npm install
+```
+
+### 2. Environment variables
+
+Copy the example file and fill in your values:
+
+```bash
+cp .env.local.example .env.local
+```
+
+| Variable | Where to get it |
+|----------|----------------|
+| `NEXT_PUBLIC_FIREBASE_*` | Firebase Console → Project settings → Your apps |
+| `RESEND_API_KEY` | [resend.com](https://resend.com) → API Keys |
+
+### 3. Run the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Firebase setup
 
-## Learn More
+The project uses three Firebase services:
 
-To learn more about Next.js, take a look at the following resources:
+- **Auth** — Email/password sign-in enabled
+- **Firestore** — Rules in `firestore.rules`
+- **Storage** — Rules in `storage.rules`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Deploy rules:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+firebase deploy --only firestore,storage --project caia-app-c0541
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## User roles
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Role | Access |
+|------|--------|
+| `owner` | Full access — manage tricks, logs, hikes, users |
+| `family` | Can create and edit content |
+
+Roles are assigned from `pendingInvites` in Firestore when a user registers for the first time. The owner creates invites from `/dashboard/settings/users`.
