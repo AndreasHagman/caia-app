@@ -49,7 +49,7 @@ async function getCroppedBlob(imageSrc: string, cropPixels: Area): Promise<Blob>
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
-      else reject(new Error("Canvas toBlob failed"));
+      else reject(new Error("Canvas toBlob returned null"));
     }, "image/jpeg", 0.92);
   });
 }
@@ -61,22 +61,34 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [saving, setSaving] = useState(false);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Normalize EXIF orientation and convert HEIC→JPEG so canvas works on all devices
-    const normalized = await imageCompression(file, {
-      maxSizeMB: 10,
-      useWebWorker: true,
-      fileType: "image/jpeg",
-    });
-    const reader = new FileReader();
-    reader.onload = () => setImageSrc(reader.result as string);
-    reader.readAsDataURL(normalized);
-    // reset crop state for new image
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
+    setErrorDetail(null);
+    console.log("[ImageEditor] File selected:", file.name, file.type, `${(file.size / 1024).toFixed(0)} KB`);
+    try {
+      console.log("[ImageEditor] Normalising (EXIF + HEIC→JPEG)…");
+      const normalized = await imageCompression(file, {
+        maxSizeMB: 10,
+        useWebWorker: true,
+        fileType: "image/jpeg",
+      });
+      console.log("[ImageEditor] Normalised:", normalized.type, `${(normalized.size / 1024).toFixed(0)} KB`);
+      const reader = new FileReader();
+      reader.onload = () => {
+        console.log("[ImageEditor] Data URL ready, rendering cropper");
+        setImageSrc(reader.result as string);
+      };
+      reader.readAsDataURL(normalized);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[ImageEditor] Normalisation failed:", msg);
+      setErrorDetail(`Normalisation failed: ${msg}`);
+    }
   }
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => {
@@ -86,17 +98,29 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
   async function handleSave() {
     if (!imageSrc || !croppedAreaPixels) return;
     setSaving(true);
+    setErrorDetail(null);
     try {
+      console.log("[ImageEditor] Cropping canvas…", croppedAreaPixels);
       const blob = await getCroppedBlob(imageSrc, croppedAreaPixels);
+      console.log("[ImageEditor] Blob ready:", `${(blob.size / 1024).toFixed(0)} KB`);
+
+      console.log("[ImageEditor] Uploading to Storage:", storagePath);
       const storageRef = ref(storage, storagePath);
       await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
+      console.log("[ImageEditor] Upload complete, fetching download URL…");
+
       const url = await getDownloadURL(storageRef);
+      console.log("[ImageEditor] Done:", url);
+
       onSaved(url);
       onOpenChange(false);
       setImageSrc(null);
       toast.success("Photo updated");
-    } catch {
-      toast.error("Failed to save photo");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[ImageEditor] Save failed:", msg);
+      setErrorDetail(msg);
+      toast.error("Failed to save — see details below");
     } finally {
       setSaving(false);
     }
@@ -106,6 +130,7 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
     if (saving) return;
     onOpenChange(false);
     setImageSrc(null);
+    setErrorDetail(null);
   }
 
   return (
@@ -147,12 +172,19 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
                 />
               </div>
 
+              {/* Error detail */}
+              {errorDetail && (
+                <div className="px-4 py-2 bg-red-50 border-t border-red-200 shrink-0">
+                  <p className="text-xs text-red-700 font-mono break-all">{errorDetail}</p>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="px-4 pb-6 pt-2 flex gap-3 shrink-0 bg-white border-t border-cream-200">
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => { setImageSrc(null); fileInputRef.current?.click(); }}
+                  onClick={() => { setImageSrc(null); setErrorDetail(null); fileInputRef.current?.click(); }}
                   disabled={saving}
                 >
                   Choose different
@@ -176,6 +208,11 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
                 <p className="font-medium mb-1">Choose a photo of Caia</p>
                 <p className="text-sm text-muted-foreground">You can crop and zoom after selecting</p>
               </div>
+              {errorDetail && (
+                <div className="w-full px-2 py-2 bg-red-50 rounded-xl border border-red-200">
+                  <p className="text-xs text-red-700 font-mono break-all">{errorDetail}</p>
+                </div>
+              )}
               <Button
                 className="bg-sage-600 hover:bg-sage-700"
                 onClick={() => fileInputRef.current?.click()}
