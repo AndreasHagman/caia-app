@@ -8,12 +8,13 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   imageUrl: string;
+  heightVh: number;
   focalX: number;
   focalY: number;
   onCommit: (x: number, y: number) => void;
 }
 
-export function ImageRepositionSheet({ open, onOpenChange, imageUrl, focalX, focalY, onCommit }: Props) {
+export function ImageRepositionSheet({ open, onOpenChange, imageUrl, heightVh, focalX, focalY, onCommit }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startX: number; startY: number; startFocalX: number; startFocalY: number; lastX: number; lastY: number } | null>(null);
   const [tempX, setTempX] = useState(focalX);
@@ -69,24 +70,28 @@ export function ImageRepositionSheet({ open, onOpenChange, imageUrl, focalX, foc
           <SheetTitle>Reposition photo</SheetTitle>
         </SheetHeader>
 
-        <div
-          ref={containerRef}
-          className="flex-1 overflow-hidden relative cursor-grab active:cursor-grabbing select-none"
-          style={{ touchAction: "none" }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-        >
-          <img
-            src={imageUrl}
-            alt="Reposition"
-            className="w-full h-full object-cover"
-            style={{ objectPosition: `${tempX}% ${tempY}%`, pointerEvents: "none" }}
-            draggable={false}
-          />
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full pointer-events-none">
-            Drag to reposition
+        {/* Dark surround — area outside the actual image box */}
+        <div className="flex-1 flex flex-col items-center justify-center bg-neutral-900 overflow-hidden px-4 py-4">
+          {/* Image box — same height as on the page so the crop boundary is clear */}
+          <div
+            ref={containerRef}
+            className="w-full overflow-hidden relative cursor-grab active:cursor-grabbing select-none ring-2 ring-white/70 rounded-sm"
+            style={{ height: `${heightVh}vh`, touchAction: "none" }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          >
+            <img
+              src={imageUrl}
+              alt="Reposition"
+              className="w-full h-full object-cover"
+              style={{ objectPosition: `${tempX}% ${tempY}%`, pointerEvents: "none" }}
+              draggable={false}
+            />
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full pointer-events-none">
+              Drag to reposition
+            </div>
           </div>
         </div>
 

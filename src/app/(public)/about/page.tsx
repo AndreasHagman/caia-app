@@ -163,6 +163,7 @@ export default function AboutPage() {
           open={repositionOpen}
           onOpenChange={setRepositionOpen}
           imageUrl={imageUrl}
+          heightVh={heightVh}
           focalX={focalX}
           focalY={focalY}
           onCommit={(x, y) => { setFocalX(x); setFocalY(y); setAboutFocal(x, y); }}

@@ -145,6 +145,7 @@ export default function LandingPage() {
           open={repositionOpen}
           onOpenChange={setRepositionOpen}
           imageUrl={heroUrl}
+          heightVh={heightVh}
           focalX={focalX}
           focalY={focalY}
           onCommit={(x, y) => { setFocalX(x); setFocalY(y); setHomeFocal(x, y); }}
