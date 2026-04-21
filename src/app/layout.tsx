@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   title: "Caia",
   description: "Nova Scotia Duck Tolling Retriever – training, tricks, and memories",
   metadataBase: new URL("https://caia.andreashagman.no"),
+  icons: {
+    icon: "/favicon.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
