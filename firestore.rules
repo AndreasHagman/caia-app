@@ -45,5 +45,11 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create, delete: if isOwner();
     }
+
+    match /settings/{docId} {
+      // Public settings (e.g. about page image) are readable by anyone
+      allow read: if true;
+      allow write: if isOwner();
+    }
   }
 }
