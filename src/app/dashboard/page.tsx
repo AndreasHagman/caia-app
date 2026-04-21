@@ -1,16 +1,20 @@
 "use client";
 
 import { useTricks } from "@/hooks/useTricks";
+import { useLogs } from "@/hooks/useLogs";
+import { useHikes } from "@/hooks/useHikes";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { TrickCard } from "@/components/tricks/TrickCard";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { computeProgress } from "@/lib/tricks";
-import { useAuth } from "@/contexts/AuthContext";
 
 export default function DashboardPage() {
-  const { tricks, loading } = useTricks();
+  const { tricks } = useTricks();
+  const { logs } = useLogs();
+  const { hikes } = useHikes();
   const { canEdit } = useAuth();
 
   const activeTricks = tricks.filter((t) => t.status !== "mastered");
@@ -33,26 +37,28 @@ export default function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total tricks", value: loading ? "…" : tricks.length },
-          { label: "Mastered", value: loading ? "…" : masteredCount },
-          { label: "In progress", value: loading ? "…" : activeTricks.length },
-          { label: "Training logs", value: "—" },
+          { label: "Total tricks", value: tricks.length, href: "/dashboard/tricks" },
+          { label: "Mastered", value: masteredCount, href: "/dashboard/tricks" },
+          { label: "Training logs", value: logs.length, href: "/dashboard/logs" },
+          { label: "Hikes", value: hikes.length, href: "/dashboard/hikes" },
         ].map((stat) => (
-          <Card key={stat.label} className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-1 pt-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {stat.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-4">
-              <p className="text-2xl font-bold">{stat.value}</p>
-            </CardContent>
-          </Card>
+          <Link key={stat.label} href={stat.href}>
+            <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader className="pb-1 pt-4">
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {stat.label}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pb-4">
+                <p className="text-2xl font-bold">{stat.value}</p>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
 
-      {/* Active tricks */}
-      {activeTricks.length > 0 && (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Active tricks */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">In progress</h2>
@@ -60,17 +66,27 @@ export default function DashboardPage() {
               <Link href="/dashboard/tricks">View all</Link>
             </Button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {activeTricks.slice(0, 3).map((trick) => (
-              <TrickCard
-                key={trick.id}
-                trick={trick}
-                href={`/dashboard/tricks/${trick.id}/edit`}
-              />
-            ))}
-          </div>
+          {activeTricks.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No active tricks.</p>
+          ) : (
+            <div className="space-y-3">
+              {activeTricks.slice(0, 3).map((trick) => (
+                <TrickCard
+                  key={trick.id}
+                  trick={trick}
+                  href={`/dashboard/tricks/${trick.id}/edit`}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Activity feed */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Recent activity</h2>
+          <ActivityFeed tricks={tricks} logs={logs} hikes={hikes} limit={8} />
+        </div>
+      </div>
     </div>
   );
 }
