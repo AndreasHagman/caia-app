@@ -6,6 +6,21 @@ import { Progress } from "@/components/ui/progress";
 import { Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import heic2any from "heic2any";
+
+async function normalizeFile(file: File): Promise<File> {
+  const isHeic =
+    file.type === "image/heic" ||
+    file.type === "image/heif" ||
+    /\.heic$/i.test(file.name) ||
+    /\.heif$/i.test(file.name);
+
+  if (!isHeic) return file;
+
+  const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+  const blob = Array.isArray(result) ? result[0] : result;
+  return new File([blob], file.name.replace(/\.heic?$/i, ".jpg"), { type: "image/jpeg" });
+}
 
 interface Props {
   trickId: string;
@@ -23,18 +38,23 @@ export function MediaUploader({ trickId, mediaUrls, onUrlsChange }: Props) {
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const file = files[0];
+    let file = files[0];
+
     const validationError = validateMediaFile(file);
     if (validationError) {
       toast.error(validationError);
       return;
     }
 
-    const ext = file.name.split(".").pop() ?? "bin";
-    const path = `tricks/${trickId}/${Date.now()}.${ext}`;
-
     try {
       setUploadProgress(0);
+
+      // Convert HEIC/HEIF → JPEG so it displays on Android/Windows
+      file = await normalizeFile(file);
+
+      const ext = file.name.split(".").pop() ?? "bin";
+      const path = `tricks/${trickId}/${Date.now()}.${ext}`;
+
       const url = await uploadMedia(file, path, setUploadProgress);
       onUrlsChange([...mediaUrls, url]);
       toast.success("Uploaded");
