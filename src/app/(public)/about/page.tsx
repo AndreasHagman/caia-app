@@ -5,10 +5,11 @@ import { getAboutSettings, setAboutImageUrl, setAboutHeightVh, setAboutFocal } f
 import { useAuth } from "@/contexts/AuthContext";
 import { AboutImageEditor } from "@/components/about/AboutImageEditor";
 import { DraggableImage } from "@/components/about/DraggableImage";
+import { ImageRepositionSheet } from "@/components/about/ImageRepositionSheet";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
+import { Pencil, Move } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const BIRTH_DATE = new Date("2025-03-16");
@@ -27,6 +28,7 @@ export default function AboutPage() {
   const [focalX, setFocalX] = useState(50);
   const [focalY, setFocalY] = useState(50);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [repositionOpen, setRepositionOpen] = useState(false);
 
   useEffect(() => {
     getAboutSettings().then((s) => {
@@ -49,20 +51,28 @@ export default function AboutPage() {
             heightVh={heightVh}
             focalX={focalX}
             focalY={focalY}
-            isOwner={isOwner}
-            onFocalChange={(x, y) => { setFocalX(x); setFocalY(y); }}
-            onFocalCommit={(x, y) => setAboutFocal(x, y)}
           >
             {isOwner && (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="absolute top-3 right-3 opacity-80 hover:opacity-100"
-                onClick={() => setEditorOpen(true)}
-              >
-                <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                Change photo
-              </Button>
+              <div className="absolute top-3 right-3 flex flex-col gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="opacity-80 hover:opacity-100"
+                  onClick={() => setEditorOpen(true)}
+                >
+                  <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                  Change photo
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="opacity-80 hover:opacity-100"
+                  onClick={() => setRepositionOpen(true)}
+                >
+                  <Move className="h-3.5 w-3.5 mr-1.5" />
+                  Reposition
+                </Button>
+              </div>
             )}
           </DraggableImage>
         ) : (
@@ -148,6 +158,16 @@ export default function AboutPage() {
           setImageUrl(url);
         }}
       />
+      {imageUrl && (
+        <ImageRepositionSheet
+          open={repositionOpen}
+          onOpenChange={setRepositionOpen}
+          imageUrl={imageUrl}
+          focalX={focalX}
+          focalY={focalY}
+          onCommit={(x, y) => { setFocalX(x); setFocalY(y); setAboutFocal(x, y); }}
+        />
+      )}
     </div>
   );
 }

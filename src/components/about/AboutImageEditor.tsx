@@ -80,7 +80,7 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath }: P
       onOpenChange(false);
       setPreview(null);
       setProgress(null);
-      toast.success("Photo updated — drag to reposition");
+      toast.success("Photo updated — tap Reposition to adjust focal point");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[ImageEditor] Upload failed:", err);
@@ -137,7 +137,7 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath }: P
               )}
 
               <p className="text-xs text-muted-foreground text-center pt-3 px-4 shrink-0">
-                After uploading, drag the image on the page to reposition it
+                After uploading, use the <strong>Reposition</strong> button on the image to adjust the focal point
               </p>
 
               {/* Actions */}
@@ -166,7 +166,7 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath }: P
               </div>
               <div className="text-center">
                 <p className="font-medium mb-1">Choose a photo of Caia</p>
-                <p className="text-sm text-muted-foreground">Full image is uploaded — you'll drag to reposition afterwards</p>
+                <p className="text-sm text-muted-foreground">Full image is uploaded — use the Reposition button to adjust the focal point afterwards</p>
               </div>
               {errorDetail && (
                 <div className="w-full px-2 py-2 bg-red-50 rounded-xl border border-red-200">
