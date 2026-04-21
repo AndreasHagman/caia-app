@@ -30,7 +30,7 @@ async function fetchOrCreateUserDoc(firebaseUser: User): Promise<AppUser> {
     uid: firebaseUser.uid,
     email: firebaseUser.email ?? "",
     role: "family",
-    displayName: firebaseUser.displayName ?? undefined,
+    ...(firebaseUser.displayName && { displayName: firebaseUser.displayName }),
   };
   await setDoc(ref, newUser);
   return newUser;
