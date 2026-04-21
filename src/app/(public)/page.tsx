@@ -1,4 +1,7 @@
+"use client";
+
 import { calculateAge } from "@/lib/utils";
+import { useTricks } from "@/hooks/useTricks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -6,6 +9,7 @@ import { ArrowRight, MapPin, Calendar } from "lucide-react";
 
 export default function LandingPage() {
   const age = calculateAge();
+  const { tricks, loading } = useTricks();
 
   return (
     <div className="max-w-5xl mx-auto px-4">
@@ -43,7 +47,7 @@ export default function LandingPage() {
         {[
           { icon: <Calendar className="h-5 w-5" />, label: "Born", value: "March 16, 2025" },
           { icon: <MapPin className="h-5 w-5" />, label: "Breed", value: "Toller" },
-          { label: "Tricks", value: "Loading…" },
+          { label: "Tricks", value: loading ? "…" : String(tricks.length) },
           { label: "Status", value: "In training" },
         ].map((stat, i) => (
           <div
