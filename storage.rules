@@ -11,9 +11,14 @@ service firebase.storage {
     }
 
     match /about/{allPaths=**} {
-      // About page images are publicly readable
       allow read: if true;
-      // Only authenticated users can upload; enforce 10 MB limit
+      allow create, update: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024;
+      allow delete: if request.auth != null;
+    }
+
+    match /home/{allPaths=**} {
+      allow read: if true;
       allow create, update: if request.auth != null
         && request.resource.size < 10 * 1024 * 1024;
       allow delete: if request.auth != null;

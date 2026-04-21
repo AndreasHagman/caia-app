@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
+import imageCompression from "browser-image-compression";
 import { storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -61,12 +62,18 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [saving, setSaving] = useState(false);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Normalize EXIF orientation and convert HEIC→JPEG so canvas works on all devices
+    const normalized = await imageCompression(file, {
+      maxSizeMB: 10,
+      useWebWorker: true,
+      fileType: "image/jpeg",
+    });
     const reader = new FileReader();
     reader.onload = () => setImageSrc(reader.result as string);
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(normalized);
     // reset crop state for new image
     setCrop({ x: 0, y: 0 });
     setZoom(1);
@@ -103,7 +110,7 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
 
   return (
     <Sheet open={open} onOpenChange={handleClose}>
-      <SheetContent side="bottom" className="h-[90dvh] flex flex-col p-0">
+      <SheetContent side="bottom" className="h-[90dvh] flex flex-col p-0" aria-describedby={undefined}>
         <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
           <SheetTitle>Update photo</SheetTitle>
         </SheetHeader>
