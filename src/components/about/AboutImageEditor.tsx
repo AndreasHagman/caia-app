@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import imageCompression from "browser-image-compression";
+import heic2any from "heic2any";
 import { storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -69,13 +70,31 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
     setErrorDetail(null);
     console.log("[ImageEditor] File selected:", file.name, file.type, `${(file.size / 1024).toFixed(0)} KB`);
     try {
-      console.log("[ImageEditor] Normalising (EXIF + HEIC→JPEG)…");
-      const normalized = await imageCompression(file, {
+      let workingFile: File = file;
+
+      // HEIC/HEIF: Chrome on Android has no native decoder — convert to JPEG first
+      const isHeic =
+        file.type === "image/heic" ||
+        file.type === "image/heif" ||
+        /\.heic$/i.test(file.name) ||
+        /\.heif$/i.test(file.name);
+
+      if (isHeic) {
+        console.log("[ImageEditor] HEIC detected — converting to JPEG via heic2any…");
+        const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+        const blob = Array.isArray(result) ? result[0] : result;
+        workingFile = new File([blob], file.name.replace(/\.heic?$/i, ".jpg"), { type: "image/jpeg" });
+        console.log("[ImageEditor] HEIC→JPEG done:", `${(workingFile.size / 1024).toFixed(0)} KB`);
+      }
+
+      console.log("[ImageEditor] Normalising EXIF orientation…");
+      const normalized = await imageCompression(workingFile, {
         maxSizeMB: 10,
         useWebWorker: true,
         fileType: "image/jpeg",
       });
       console.log("[ImageEditor] Normalised:", normalized.type, `${(normalized.size / 1024).toFixed(0)} KB`);
+
       const reader = new FileReader();
       reader.onload = () => {
         console.log("[ImageEditor] Data URL ready, rendering cropper");
@@ -85,8 +104,8 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
       setCrop({ x: 0, y: 0 });
       setZoom(1);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("[ImageEditor] Normalisation failed:", msg);
+      const msg = err instanceof Error ? err.message : err instanceof Event ? `Browser decoding error (${err.type})` : String(err);
+      console.error("[ImageEditor] Normalisation failed:", err);
       setErrorDetail(`Normalisation failed: ${msg}`);
     }
   }
