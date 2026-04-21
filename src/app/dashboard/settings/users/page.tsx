@@ -34,7 +34,18 @@ export default function UsersSettingsPage() {
     setSaving(true);
     try {
       await createInvite(email, role);
-      toast.success(`Invite created for ${email}`);
+
+      const res = await fetch("/api/send-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role }),
+      });
+      if (!res.ok) {
+        toast.warning(`Invite created for ${email}, but the email could not be sent.`);
+      } else {
+        toast.success(`Invite sent to ${email}`);
+      }
+
       setEmail("");
       const updated = await getInvites();
       setInvites(updated);
