@@ -1,7 +1,7 @@
 "use client";
 
 import { calculateAge, formatDate } from "@/lib/utils";
-import { getAboutImageUrl } from "@/lib/about";
+import { getAboutImageUrl, setAboutImageUrl } from "@/lib/about";
 import { useAuth } from "@/contexts/AuthContext";
 import { AboutImageEditor } from "@/components/about/AboutImageEditor";
 import { Badge } from "@/components/ui/badge";
@@ -98,7 +98,12 @@ export default function AboutPage() {
       <AboutImageEditor
         open={editorOpen}
         onOpenChange={setEditorOpen}
-        onSaved={setImageUrl}
+        storagePath="about/hero.jpg"
+        aspect={4 / 3}
+        onSaved={async (url) => {
+          await setAboutImageUrl(url);
+          setImageUrl(url);
+        }}
       />
     </div>
   );

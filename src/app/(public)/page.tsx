@@ -1,15 +1,26 @@
 "use client";
 
 import { calculateAge } from "@/lib/utils";
+import { getHomeImageUrl, setHomeImageUrl } from "@/lib/about";
 import { useTricks } from "@/hooks/useTricks";
+import { AboutImageEditor } from "@/components/about/AboutImageEditor";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { ArrowRight, MapPin, Calendar } from "lucide-react";
+import { ArrowRight, MapPin, Calendar, Pencil } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function LandingPage() {
   const age = calculateAge();
   const { tricks, loading } = useTricks();
+  const { isOwner } = useAuth();
+  const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+
+  useEffect(() => {
+    getHomeImageUrl().then(setHeroUrl);
+  }, []);
 
   return (
     <div className="max-w-5xl mx-auto px-4">
@@ -37,10 +48,36 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Hero image placeholder */}
-      <section className="rounded-3xl overflow-hidden bg-sage-100 aspect-video md:aspect-[16/7] mb-16 flex items-center justify-center">
-        <p className="text-sage-500 text-sm">Hero image goes here</p>
+      {/* Hero image */}
+      <section className="relative rounded-3xl overflow-hidden bg-sage-100 aspect-video md:aspect-[16/7] mb-16 flex items-center justify-center group">
+        {heroUrl ? (
+          <img src={heroUrl} alt="Caia" className="w-full h-full object-cover" />
+        ) : (
+          <p className="text-sage-500 text-sm">Hero image goes here</p>
+        )}
+        {isOwner && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="absolute top-3 right-3 opacity-80 hover:opacity-100"
+            onClick={() => setEditorOpen(true)}
+          >
+            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+            {heroUrl ? "Change photo" : "Add photo"}
+          </Button>
+        )}
       </section>
+
+      <AboutImageEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        storagePath="home/hero.jpg"
+        aspect={16 / 9}
+        onSaved={async (url) => {
+          await setHomeImageUrl(url);
+          setHeroUrl(url);
+        }}
+      />
 
       {/* Stats strip */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">

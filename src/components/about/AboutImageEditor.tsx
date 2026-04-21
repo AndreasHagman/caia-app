@@ -4,7 +4,6 @@ import { useCallback, useRef, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import { storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { setAboutImageUrl } from "@/lib/about";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ImageIcon, Upload } from "lucide-react";
@@ -13,7 +12,12 @@ import { toast } from "sonner";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called with the final Storage download URL after a successful upload */
   onSaved: (url: string) => void;
+  /** Firebase Storage path to upload to, e.g. "about/hero.jpg" */
+  storagePath: string;
+  /** Crop aspect ratio — defaults to 4/3 */
+  aspect?: number;
 }
 
 async function getCroppedBlob(imageSrc: string, cropPixels: Area): Promise<Blob> {
@@ -49,7 +53,7 @@ async function getCroppedBlob(imageSrc: string, cropPixels: Area): Promise<Blob>
   });
 }
 
-export function AboutImageEditor({ open, onOpenChange, onSaved }: Props) {
+export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, aspect = 4 / 3 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -77,10 +81,9 @@ export function AboutImageEditor({ open, onOpenChange, onSaved }: Props) {
     setSaving(true);
     try {
       const blob = await getCroppedBlob(imageSrc, croppedAreaPixels);
-      const storageRef = ref(storage, "about/hero.jpg");
+      const storageRef = ref(storage, storagePath);
       await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
       const url = await getDownloadURL(storageRef);
-      await setAboutImageUrl(url);
       onSaved(url);
       onOpenChange(false);
       setImageSrc(null);
@@ -114,7 +117,7 @@ export function AboutImageEditor({ open, onOpenChange, onSaved }: Props) {
                   image={imageSrc}
                   crop={crop}
                   zoom={zoom}
-                  aspect={4 / 3}
+                  aspect={aspect}
                   onCropChange={setCrop}
                   onZoomChange={setZoom}
                   onCropComplete={onCropComplete}
