@@ -6,7 +6,8 @@
       "Bash(npm install *)",
       "Bash(npx shadcn@latest *)",
       "Bash(npm run *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(node *)"
     ]
   }
 }
