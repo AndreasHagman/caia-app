@@ -18,8 +18,8 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if isAuthenticated() && request.auth.uid == uid;
-      allow write: if isOwner();
       allow create: if isAuthenticated() && request.auth.uid == uid;
+      allow update, delete: if isOwner();
     }
 
     match /tricks/{trickId} {
