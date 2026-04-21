@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+    }
+
+    function canEdit() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['owner', 'family'];
+    }
+
+    match /users/{uid} {
+      allow read: if isAuthenticated() && request.auth.uid == uid;
+      allow write: if isOwner();
+      allow create: if isAuthenticated() && request.auth.uid == uid;
+    }
+
+    match /tricks/{trickId} {
+      allow read: if true;
+      allow create, update: if canEdit();
+      allow delete: if isOwner();
+    }
+
+    match /trainingLogs/{logId} {
+      allow read: if isAuthenticated();
+      allow create, update: if canEdit();
+      allow delete: if isOwner();
+    }
+
+    match /hikes/{hikeId} {
+      allow read: if isAuthenticated();
+      allow create, update: if canEdit();
+      allow delete: if isOwner();
+    }
+  }
+}
