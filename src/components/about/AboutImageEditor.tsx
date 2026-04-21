@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import Cropper, { type Area } from "react-easy-crop";
+import { useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
 import { storage } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ImageIcon, Upload } from "lucide-react";
@@ -13,142 +12,88 @@ import { toast } from "sonner";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called with the final Storage download URL after a successful upload */
   onSaved: (url: string) => void;
-  /** Firebase Storage path to upload to, e.g. "about/hero.jpg" */
   storagePath: string;
-  /** Crop aspect ratio — defaults to 4/3 */
-  aspect?: number;
 }
 
-async function getCroppedBlob(imageSrc: string, cropPixels: Area): Promise<Blob> {
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image();
-    img.addEventListener("load", () => resolve(img));
-    img.addEventListener("error", reject);
-    img.src = imageSrc;
-  });
+async function normalizeFile(file: File): Promise<File> {
+  const isHeic =
+    file.type === "image/heic" ||
+    file.type === "image/heif" ||
+    /\.heic$/i.test(file.name) ||
+    /\.heif$/i.test(file.name);
 
-  const canvas = document.createElement("canvas");
-  canvas.width = cropPixels.width;
-  canvas.height = cropPixels.height;
-  const ctx = canvas.getContext("2d")!;
+  if (isHeic) {
+    console.log("[ImageEditor] HEIC detected — converting…");
+    const heic2any = (await import("heic2any")).default;
+    const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+    const blob = Array.isArray(result) ? result[0] : result;
+    return new File([blob], file.name.replace(/\.heic?$/i, ".jpg"), { type: "image/jpeg" });
+  }
 
-  ctx.drawImage(
-    image,
-    cropPixels.x,
-    cropPixels.y,
-    cropPixels.width,
-    cropPixels.height,
-    0,
-    0,
-    cropPixels.width,
-    cropPixels.height
-  );
-
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error("Canvas toBlob returned null"));
-    }, "image/jpeg", 0.92);
-  });
+  // Normalize EXIF orientation for non-HEIC images
+  return imageCompression(file, { maxSizeMB: 20, useWebWorker: true, fileType: "image/jpeg" });
 }
 
-export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, aspect = 4 / 3 }: Props) {
+export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [preview, setPreview] = useState<{ src: string; file: File } | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setErrorDetail(null);
-    console.log("[ImageEditor] File selected:", file.name, file.type, `${(file.size / 1024).toFixed(0)} KB`);
+    console.log("[ImageEditor] Selected:", file.name, file.type, `${(file.size / 1024).toFixed(0)} KB`);
     try {
-      let workingFile: File = file;
-
-      // HEIC/HEIF: Chrome on Android has no native decoder — convert to JPEG first
-      const isHeic =
-        file.type === "image/heic" ||
-        file.type === "image/heif" ||
-        /\.heic$/i.test(file.name) ||
-        /\.heif$/i.test(file.name);
-
-      if (isHeic) {
-        console.log("[ImageEditor] HEIC detected — converting to JPEG via heic2any…");
-        const heic2any = (await import("heic2any")).default;
-        const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
-        const blob = Array.isArray(result) ? result[0] : result;
-        workingFile = new File([blob], file.name.replace(/\.heic?$/i, ".jpg"), { type: "image/jpeg" });
-        console.log("[ImageEditor] HEIC→JPEG done:", `${(workingFile.size / 1024).toFixed(0)} KB`);
-      }
-
-      console.log("[ImageEditor] Normalising EXIF orientation…");
-      const normalized = await imageCompression(workingFile, {
-        maxSizeMB: 10,
-        useWebWorker: true,
-        fileType: "image/jpeg",
-      });
-      console.log("[ImageEditor] Normalised:", normalized.type, `${(normalized.size / 1024).toFixed(0)} KB`);
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        console.log("[ImageEditor] Data URL ready, rendering cropper");
-        setImageSrc(reader.result as string);
-      };
-      reader.readAsDataURL(normalized);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
+      const normalized = await normalizeFile(file);
+      const src = URL.createObjectURL(normalized);
+      setPreview({ src, file: normalized });
     } catch (err) {
       const msg = err instanceof Error ? err.message : err instanceof Event ? `Browser decoding error (${err.type})` : String(err);
       console.error("[ImageEditor] Normalisation failed:", err);
-      setErrorDetail(`Normalisation failed: ${msg}`);
+      setErrorDetail(`Could not read image: ${msg}`);
     }
   }
 
-  const onCropComplete = useCallback((_: Area, pixels: Area) => {
-    setCroppedAreaPixels(pixels);
-  }, []);
-
-  async function handleSave() {
-    if (!imageSrc || !croppedAreaPixels) return;
-    setSaving(true);
+  async function handleUpload() {
+    if (!preview) return;
+    setProgress(0);
     setErrorDetail(null);
     try {
-      console.log("[ImageEditor] Cropping canvas…", croppedAreaPixels);
-      const blob = await getCroppedBlob(imageSrc, croppedAreaPixels);
-      console.log("[ImageEditor] Blob ready:", `${(blob.size / 1024).toFixed(0)} KB`);
-
-      console.log("[ImageEditor] Uploading to Storage:", storagePath);
       const storageRef = ref(storage, storagePath);
-      await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-      console.log("[ImageEditor] Upload complete, fetching download URL…");
+      const task = uploadBytesResumable(storageRef, preview.file, { contentType: "image/jpeg" });
 
-      const url = await getDownloadURL(storageRef);
-      console.log("[ImageEditor] Done:", url);
+      await new Promise<void>((resolve, reject) => {
+        task.on(
+          "state_changed",
+          (snap) => setProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+          reject,
+          resolve,
+        );
+      });
 
+      const url = await getDownloadURL(task.snapshot.ref);
+      console.log("[ImageEditor] Uploaded:", url);
       onSaved(url);
       onOpenChange(false);
-      setImageSrc(null);
-      toast.success("Photo updated");
+      setPreview(null);
+      setProgress(null);
+      toast.success("Photo updated — drag to reposition");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("[ImageEditor] Save failed:", msg);
+      console.error("[ImageEditor] Upload failed:", err);
       setErrorDetail(msg);
-      toast.error("Failed to save — see details below");
-    } finally {
-      setSaving(false);
+      setProgress(null);
+      toast.error("Upload failed — see details below");
     }
   }
 
   function handleClose() {
-    if (saving) return;
+    if (progress !== null) return;
     onOpenChange(false);
-    setImageSrc(null);
+    setPreview(null);
     setErrorDetail(null);
   }
 
@@ -160,82 +105,75 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
         </SheetHeader>
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          {imageSrc ? (
+          {preview ? (
             <>
-              {/* Cropper */}
-              <div className="relative flex-1 bg-black">
-                <Cropper
-                  image={imageSrc}
-                  crop={crop}
-                  zoom={zoom}
-                  aspect={aspect}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
-                  onCropComplete={onCropComplete}
+              {/* Preview — full image, no crop */}
+              <div className="relative flex-1 bg-black overflow-hidden">
+                <img
+                  src={preview.src}
+                  alt="Preview"
+                  className="w-full h-full object-contain"
                 />
               </div>
 
-              {/* Zoom slider */}
-              <div className="px-6 py-4 bg-white shrink-0">
-                <p className="text-xs text-muted-foreground text-center mb-3">
-                  Pinch or drag to adjust · scroll or slide to zoom
-                </p>
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.01}
-                  value={zoom}
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="w-full accent-sage-600"
-                />
-              </div>
+              {/* Progress */}
+              {progress !== null && (
+                <div className="px-4 pt-3 shrink-0">
+                  <div className="w-full bg-cream-200 rounded-full h-1.5">
+                    <div
+                      className="bg-sage-600 h-1.5 rounded-full transition-all"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center mt-1">{progress}%</p>
+                </div>
+              )}
 
-              {/* Error detail */}
+              {/* Error */}
               {errorDetail && (
                 <div className="px-4 py-2 bg-red-50 border-t border-red-200 shrink-0">
                   <p className="text-xs text-red-700 font-mono break-all">{errorDetail}</p>
                 </div>
               )}
 
+              <p className="text-xs text-muted-foreground text-center pt-3 px-4 shrink-0">
+                After uploading, drag the image on the page to reposition it
+              </p>
+
               {/* Actions */}
-              <div className="px-4 pb-6 pt-2 flex gap-3 shrink-0 bg-white border-t border-cream-200">
+              <div className="px-4 pb-6 pt-3 flex gap-3 shrink-0 bg-white border-t border-cream-200">
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => { setImageSrc(null); setErrorDetail(null); fileInputRef.current?.click(); }}
-                  disabled={saving}
+                  onClick={() => { setPreview(null); setErrorDetail(null); fileInputRef.current?.click(); }}
+                  disabled={progress !== null}
                 >
                   Choose different
                 </Button>
                 <Button
                   className="flex-1 bg-sage-600 hover:bg-sage-700"
-                  onClick={handleSave}
-                  disabled={saving}
+                  onClick={handleUpload}
+                  disabled={progress !== null}
                 >
-                  {saving ? "Saving…" : "Save photo"}
+                  {progress !== null ? "Uploading…" : "Upload photo"}
                 </Button>
               </div>
             </>
           ) : (
-            /* Pick image prompt */
             <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4 pb-8">
               <div className="w-20 h-20 rounded-full bg-sage-100 flex items-center justify-center">
                 <ImageIcon className="h-8 w-8 text-sage-500" />
               </div>
               <div className="text-center">
                 <p className="font-medium mb-1">Choose a photo of Caia</p>
-                <p className="text-sm text-muted-foreground">You can crop and zoom after selecting</p>
+                <p className="text-sm text-muted-foreground">Full image is uploaded — you'll drag to reposition afterwards</p>
               </div>
               {errorDetail && (
                 <div className="w-full px-2 py-2 bg-red-50 rounded-xl border border-red-200">
                   <p className="text-xs text-red-700 font-mono break-all">{errorDetail}</p>
                 </div>
               )}
-              <Button
-                className="bg-sage-600 hover:bg-sage-700"
-                onClick={() => fileInputRef.current?.click()}
-              >
+              <Button className="bg-sage-600 hover:bg-sage-700" onClick={() => fileInputRef.current?.click()}>
                 <Upload className="mr-2 h-4 w-4" />
                 Select photo
               </Button>
@@ -243,13 +181,7 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
           )}
         </div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileChange}
-        />
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
       </SheetContent>
     </Sheet>
   );

@@ -1,9 +1,10 @@
 "use client";
 
 import { calculateAge } from "@/lib/utils";
-import { getHomeSettings, setHomeImageUrl, setHomeHeightVh } from "@/lib/about";
+import { getHomeSettings, setHomeImageUrl, setHomeHeightVh, setHomeFocal } from "@/lib/about";
 import { useTricks } from "@/hooks/useTricks";
 import { AboutImageEditor } from "@/components/about/AboutImageEditor";
+import { DraggableImage } from "@/components/about/DraggableImage";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,19 +18,18 @@ export default function LandingPage() {
   const { isOwner } = useAuth();
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [heightVh, setHeightVh] = useState(40);
+  const [focalX, setFocalX] = useState(50);
+  const [focalY, setFocalY] = useState(50);
   const [editorOpen, setEditorOpen] = useState(false);
 
   useEffect(() => {
     getHomeSettings().then((s) => {
       setHeroUrl(s.imageUrl);
       setHeightVh(s.heightVh);
+      setFocalX(s.focalX);
+      setFocalY(s.focalY);
     });
   }, []);
-
-  async function handleHeightCommit(vh: number) {
-    setHeightVh(vh);
-    await setHomeHeightVh(vh);
-  }
 
   return (
     <div className="max-w-5xl mx-auto px-4">
@@ -38,9 +38,7 @@ export default function LandingPage() {
         <Badge variant="secondary" className="mb-4 bg-sage-100 text-sage-700">
           Nova Scotia Duck Tolling Retriever
         </Badge>
-        <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-4">
-          Caia
-        </h1>
+        <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-4">Caia</h1>
         <p className="text-xl text-muted-foreground mb-2">{age}</p>
         <p className="text-muted-foreground max-w-md mx-auto mb-8">
           Follow along on the training journey — tricks, adventures, and memories.
@@ -58,29 +56,50 @@ export default function LandingPage() {
       </section>
 
       {/* Hero image */}
-      <section
-        className="relative rounded-3xl overflow-hidden bg-sage-100 mb-2 flex items-center justify-center"
-        style={{ height: `${heightVh}vh` }}
-      >
-        {heroUrl ? (
-          <img src={heroUrl} alt="Caia" className="w-full h-full object-cover" />
-        ) : (
+      {heroUrl ? (
+        <DraggableImage
+          imageUrl={heroUrl}
+          heightVh={heightVh}
+          focalX={focalX}
+          focalY={focalY}
+          isOwner={isOwner}
+          onFocalChange={(x, y) => { setFocalX(x); setFocalY(y); }}
+          onFocalCommit={(x, y) => setHomeFocal(x, y)}
+          className="rounded-3xl mb-2"
+        >
+          {isOwner && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="absolute top-3 right-3 opacity-80 hover:opacity-100"
+              onClick={() => setEditorOpen(true)}
+            >
+              <Pencil className="h-3.5 w-3.5 mr-1.5" />
+              Change photo
+            </Button>
+          )}
+        </DraggableImage>
+      ) : (
+        <section
+          className="relative rounded-3xl overflow-hidden bg-sage-100 mb-2 flex items-center justify-center"
+          style={{ height: `${heightVh}vh` }}
+        >
           <p className="text-sage-500 text-sm">Hero image goes here</p>
-        )}
-        {isOwner && (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="absolute top-3 right-3 opacity-80 hover:opacity-100"
-            onClick={() => setEditorOpen(true)}
-          >
-            <Pencil className="h-3.5 w-3.5 mr-1.5" />
-            {heroUrl ? "Change photo" : "Add photo"}
-          </Button>
-        )}
-      </section>
+          {isOwner && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="absolute top-3 right-3 opacity-80 hover:opacity-100"
+              onClick={() => setEditorOpen(true)}
+            >
+              <Pencil className="h-3.5 w-3.5 mr-1.5" />
+              Add photo
+            </Button>
+          )}
+        </section>
+      )}
 
-      {/* Owner-only height control */}
+      {/* Owner controls */}
       {isOwner && (
         <div className="flex items-center gap-3 mb-14 px-1">
           <span className="text-xs text-muted-foreground shrink-0">Shorter</span>
@@ -91,8 +110,8 @@ export default function LandingPage() {
             step={5}
             value={heightVh}
             onChange={(e) => setHeightVh(Number(e.target.value))}
-            onPointerUp={(e) => handleHeightCommit(Number((e.target as HTMLInputElement).value))}
-            onTouchEnd={(e) => handleHeightCommit(Number((e.target as HTMLInputElement).value))}
+            onPointerUp={(e) => setHomeHeightVh(Number((e.target as HTMLInputElement).value))}
+            onTouchEnd={(e) => setHomeHeightVh(Number((e.target as HTMLInputElement).value))}
             className="flex-1 accent-sage-600"
           />
           <span className="text-xs text-muted-foreground shrink-0">Taller</span>
@@ -106,7 +125,6 @@ export default function LandingPage() {
         open={editorOpen}
         onOpenChange={setEditorOpen}
         storagePath="home/hero.jpg"
-        aspect={16 / 9}
         onSaved={async (url) => {
           await setHomeImageUrl(url);
           setHeroUrl(url);
@@ -121,10 +139,7 @@ export default function LandingPage() {
           { label: "Tricks", value: loading ? "…" : String(tricks.length) },
           { label: "Status", value: "In training" },
         ].map((stat, i) => (
-          <div
-            key={i}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-cream-200 flex flex-col gap-1"
-          >
+          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-cream-200 flex flex-col gap-1">
             {stat.icon && <span className="text-sage-600">{stat.icon}</span>}
             <span className="text-xs text-muted-foreground uppercase tracking-wide">{stat.label}</span>
             <span className="font-semibold">{stat.value}</span>

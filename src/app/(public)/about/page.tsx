@@ -1,9 +1,10 @@
 "use client";
 
 import { calculateAge, formatDate } from "@/lib/utils";
-import { getAboutSettings, setAboutImageUrl, setAboutHeightVh } from "@/lib/about";
+import { getAboutSettings, setAboutImageUrl, setAboutHeightVh, setAboutFocal } from "@/lib/about";
 import { useAuth } from "@/contexts/AuthContext";
 import { AboutImageEditor } from "@/components/about/AboutImageEditor";
+import { DraggableImage } from "@/components/about/DraggableImage";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,19 +24,18 @@ export default function AboutPage() {
   const { isOwner } = useAuth();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [heightVh, setHeightVh] = useState(45);
+  const [focalX, setFocalX] = useState(50);
+  const [focalY, setFocalY] = useState(50);
   const [editorOpen, setEditorOpen] = useState(false);
 
   useEffect(() => {
     getAboutSettings().then((s) => {
       setImageUrl(s.imageUrl);
       setHeightVh(s.heightVh);
+      setFocalX(s.focalX);
+      setFocalY(s.focalY);
     });
   }, []);
-
-  async function handleHeightCommit(vh: number) {
-    setHeightVh(vh);
-    await setAboutHeightVh(vh);
-  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
@@ -43,29 +43,49 @@ export default function AboutPage() {
       <p className="text-muted-foreground mb-10">{calculateAge()}</p>
 
       <Card className="rounded-3xl shadow-sm mb-2 overflow-hidden">
-        <div
-          className="relative bg-sage-100 flex items-center justify-center"
-          style={{ height: `${heightVh}vh` }}
-        >
-          {imageUrl ? (
-            <img src={imageUrl} alt="Caia" className="w-full h-full object-cover" />
-          ) : (
+        {imageUrl ? (
+          <DraggableImage
+            imageUrl={imageUrl}
+            heightVh={heightVh}
+            focalX={focalX}
+            focalY={focalY}
+            isOwner={isOwner}
+            onFocalChange={(x, y) => { setFocalX(x); setFocalY(y); }}
+            onFocalCommit={(x, y) => setAboutFocal(x, y)}
+          >
+            {isOwner && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="absolute top-3 right-3 opacity-80 hover:opacity-100"
+                onClick={() => setEditorOpen(true)}
+              >
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                Change photo
+              </Button>
+            )}
+          </DraggableImage>
+        ) : (
+          <div
+            className="relative bg-sage-100 flex items-center justify-center"
+            style={{ height: `${heightVh}vh` }}
+          >
             <span className="text-sage-400 text-sm">Photo goes here</span>
-          )}
-          {isOwner && (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="absolute top-3 right-3 opacity-80 hover:opacity-100"
-              onClick={() => setEditorOpen(true)}
-            >
-              <Pencil className="h-3.5 w-3.5 mr-1.5" />
-              {imageUrl ? "Change photo" : "Add photo"}
-            </Button>
-          )}
-        </div>
+            {isOwner && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="absolute top-3 right-3 opacity-80 hover:opacity-100"
+                onClick={() => setEditorOpen(true)}
+              >
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                Add photo
+              </Button>
+            )}
+          </div>
+        )}
 
-        {/* Owner-only height control */}
+        {/* Owner height control */}
         {isOwner && (
           <div className="flex items-center gap-3 px-4 py-3 border-t border-cream-200 bg-cream-50">
             <span className="text-xs text-muted-foreground shrink-0">Shorter</span>
@@ -76,8 +96,8 @@ export default function AboutPage() {
               step={5}
               value={heightVh}
               onChange={(e) => setHeightVh(Number(e.target.value))}
-              onPointerUp={(e) => handleHeightCommit(Number((e.target as HTMLInputElement).value))}
-              onTouchEnd={(e) => handleHeightCommit(Number((e.target as HTMLInputElement).value))}
+              onPointerUp={(e) => setAboutHeightVh(Number((e.target as HTMLInputElement).value))}
+              onTouchEnd={(e) => setAboutHeightVh(Number((e.target as HTMLInputElement).value))}
               className="flex-1 accent-sage-600"
             />
             <span className="text-xs text-muted-foreground shrink-0">Taller</span>
@@ -112,16 +132,9 @@ export default function AboutPage() {
       <h2 className="text-xl font-semibold mb-4">Personality</h2>
       <div className="grid grid-cols-2 gap-3 mb-8">
         {traits.map((t) => (
-          <div
-            key={t.label}
-            className="bg-white rounded-2xl p-4 border border-cream-200 shadow-sm"
-          >
-            <span className="text-xs text-muted-foreground uppercase tracking-wide block mb-1">
-              {t.label}
-            </span>
-            <Badge variant="secondary" className="bg-sage-100 text-sage-700">
-              {t.value}
-            </Badge>
+          <div key={t.label} className="bg-white rounded-2xl p-4 border border-cream-200 shadow-sm">
+            <span className="text-xs text-muted-foreground uppercase tracking-wide block mb-1">{t.label}</span>
+            <Badge variant="secondary" className="bg-sage-100 text-sage-700">{t.value}</Badge>
           </div>
         ))}
       </div>
@@ -130,7 +143,6 @@ export default function AboutPage() {
         open={editorOpen}
         onOpenChange={setEditorOpen}
         storagePath="about/hero.jpg"
-        aspect={4 / 3}
         onSaved={async (url) => {
           await setAboutImageUrl(url);
           setImageUrl(url);
