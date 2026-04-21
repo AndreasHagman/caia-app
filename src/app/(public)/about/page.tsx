@@ -1,7 +1,7 @@
 "use client";
 
 import { calculateAge, formatDate } from "@/lib/utils";
-import { getAboutImageUrl, setAboutImageUrl } from "@/lib/about";
+import { getAboutSettings, setAboutImageUrl, setAboutHeightVh } from "@/lib/about";
 import { useAuth } from "@/contexts/AuthContext";
 import { AboutImageEditor } from "@/components/about/AboutImageEditor";
 import { Badge } from "@/components/ui/badge";
@@ -22,25 +22,33 @@ const traits = [
 export default function AboutPage() {
   const { isOwner } = useAuth();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [heightVh, setHeightVh] = useState(45);
   const [editorOpen, setEditorOpen] = useState(false);
 
   useEffect(() => {
-    getAboutImageUrl().then(setImageUrl);
+    getAboutSettings().then((s) => {
+      setImageUrl(s.imageUrl);
+      setHeightVh(s.heightVh);
+    });
   }, []);
+
+  async function handleHeightCommit(vh: number) {
+    setHeightVh(vh);
+    await setAboutHeightVh(vh);
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <h1 className="text-4xl font-bold mb-2">About Caia</h1>
       <p className="text-muted-foreground mb-10">{calculateAge()}</p>
 
-      <Card className="rounded-3xl shadow-sm mb-8 overflow-hidden">
-        <div className="relative bg-sage-100 aspect-[4/3] flex items-center justify-center group">
+      <Card className="rounded-3xl shadow-sm mb-2 overflow-hidden">
+        <div
+          className="relative bg-sage-100 flex items-center justify-center"
+          style={{ height: `${heightVh}vh` }}
+        >
           {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt="Caia"
-              className="w-full h-full object-cover"
-            />
+            <img src={imageUrl} alt="Caia" className="w-full h-full object-cover" />
           ) : (
             <span className="text-sage-400 text-sm">Photo goes here</span>
           )}
@@ -56,6 +64,27 @@ export default function AboutPage() {
             </Button>
           )}
         </div>
+
+        {/* Owner-only height control */}
+        {isOwner && (
+          <div className="flex items-center gap-3 px-4 py-3 border-t border-cream-200 bg-cream-50">
+            <span className="text-xs text-muted-foreground shrink-0">Shorter</span>
+            <input
+              type="range"
+              min={15}
+              max={80}
+              step={5}
+              value={heightVh}
+              onChange={(e) => setHeightVh(Number(e.target.value))}
+              onPointerUp={(e) => handleHeightCommit(Number((e.target as HTMLInputElement).value))}
+              onTouchEnd={(e) => handleHeightCommit(Number((e.target as HTMLInputElement).value))}
+              className="flex-1 accent-sage-600"
+            />
+            <span className="text-xs text-muted-foreground shrink-0">Taller</span>
+            <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{heightVh}vh</span>
+          </div>
+        )}
+
         <CardContent className="p-6">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
@@ -77,6 +106,8 @@ export default function AboutPage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="mb-8" />
 
       <h2 className="text-xl font-semibold mb-4">Personality</h2>
       <div className="grid grid-cols-2 gap-3 mb-8">

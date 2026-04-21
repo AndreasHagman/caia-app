@@ -3,7 +3,6 @@
 import { useCallback, useRef, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import imageCompression from "browser-image-compression";
-import heic2any from "heic2any";
 import { storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -81,6 +80,7 @@ export function AboutImageEditor({ open, onOpenChange, onSaved, storagePath, asp
 
       if (isHeic) {
         console.log("[ImageEditor] HEIC detected — converting to JPEG via heic2any…");
+        const heic2any = (await import("heic2any")).default;
         const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
         const blob = Array.isArray(result) ? result[0] : result;
         workingFile = new File([blob], file.name.replace(/\.heic?$/i, ".jpg"), { type: "image/jpeg" });

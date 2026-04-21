@@ -6,7 +6,6 @@ import { Progress } from "@/components/ui/progress";
 import { Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import heic2any from "heic2any";
 
 async function normalizeFile(file: File): Promise<File> {
   const isHeic =
@@ -17,6 +16,7 @@ async function normalizeFile(file: File): Promise<File> {
 
   if (!isHeic) return file;
 
+  const heic2any = (await import("heic2any")).default;
   const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
   const blob = Array.isArray(result) ? result[0] : result;
   return new File([blob], file.name.replace(/\.heic?$/i, ".jpg"), { type: "image/jpeg" });

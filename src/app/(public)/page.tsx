@@ -1,7 +1,7 @@
 "use client";
 
 import { calculateAge } from "@/lib/utils";
-import { getHomeImageUrl, setHomeImageUrl } from "@/lib/about";
+import { getHomeSettings, setHomeImageUrl, setHomeHeightVh } from "@/lib/about";
 import { useTricks } from "@/hooks/useTricks";
 import { AboutImageEditor } from "@/components/about/AboutImageEditor";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,11 +16,20 @@ export default function LandingPage() {
   const { tricks, loading } = useTricks();
   const { isOwner } = useAuth();
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const [heightVh, setHeightVh] = useState(40);
   const [editorOpen, setEditorOpen] = useState(false);
 
   useEffect(() => {
-    getHomeImageUrl().then(setHeroUrl);
+    getHomeSettings().then((s) => {
+      setHeroUrl(s.imageUrl);
+      setHeightVh(s.heightVh);
+    });
   }, []);
+
+  async function handleHeightCommit(vh: number) {
+    setHeightVh(vh);
+    await setHomeHeightVh(vh);
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4">
@@ -49,7 +58,10 @@ export default function LandingPage() {
       </section>
 
       {/* Hero image */}
-      <section className="relative rounded-3xl overflow-hidden bg-sage-100 aspect-video md:aspect-[16/7] mb-16 flex items-center justify-center group">
+      <section
+        className="relative rounded-3xl overflow-hidden bg-sage-100 mb-2 flex items-center justify-center"
+        style={{ height: `${heightVh}vh` }}
+      >
         {heroUrl ? (
           <img src={heroUrl} alt="Caia" className="w-full h-full object-cover" />
         ) : (
@@ -67,6 +79,28 @@ export default function LandingPage() {
           </Button>
         )}
       </section>
+
+      {/* Owner-only height control */}
+      {isOwner && (
+        <div className="flex items-center gap-3 mb-14 px-1">
+          <span className="text-xs text-muted-foreground shrink-0">Shorter</span>
+          <input
+            type="range"
+            min={15}
+            max={80}
+            step={5}
+            value={heightVh}
+            onChange={(e) => setHeightVh(Number(e.target.value))}
+            onPointerUp={(e) => handleHeightCommit(Number((e.target as HTMLInputElement).value))}
+            onTouchEnd={(e) => handleHeightCommit(Number((e.target as HTMLInputElement).value))}
+            className="flex-1 accent-sage-600"
+          />
+          <span className="text-xs text-muted-foreground shrink-0">Taller</span>
+          <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{heightVh}vh</span>
+        </div>
+      )}
+
+      {!isOwner && <div className="mb-16" />}
 
       <AboutImageEditor
         open={editorOpen}
