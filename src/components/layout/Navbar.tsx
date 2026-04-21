@@ -17,12 +17,16 @@ const publicLinks = [
 ];
 
 export function Navbar() {
-  const { user, signOut, canEdit } = useAuth();
+  const { user, signOut, canEdit, isOwner } = useAuth();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
   const links = canEdit
-    ? [...publicLinks, { href: "/dashboard", label: "Dashboard" }]
+    ? [
+        ...publicLinks,
+        { href: "/dashboard", label: "Dashboard" },
+        ...(isOwner ? [{ href: "/dashboard/settings/users", label: "Users" }] : []),
+      ]
     : publicLinks;
 
   return (
