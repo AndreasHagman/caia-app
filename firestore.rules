@@ -39,5 +39,11 @@ service cloud.firestore {
       allow create, update: if canEdit();
       allow delete: if isOwner();
     }
+
+    match /pendingInvites/{inviteId} {
+      // Any authenticated user can read to check their own invite on sign-in
+      allow read: if isAuthenticated();
+      allow create, delete: if isOwner();
+    }
   }
 }

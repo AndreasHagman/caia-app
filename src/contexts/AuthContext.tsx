@@ -1,10 +1,22 @@
 "use client";
 
 import { auth, db } from "@/lib/firebase";
+import { findInviteByEmail, deleteInvite } from "@/lib/invites";
 import type { AppUser } from "@/types";
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut as firebaseSignOut, type User } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  type User,
+} from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 interface AuthContextValue {
   user: AppUser | null;
@@ -26,13 +38,24 @@ async function fetchOrCreateUserDoc(firebaseUser: User): Promise<AppUser> {
     return snap.data() as AppUser;
   }
 
+  // Check if there is a pending invite for this email
+  const email = firebaseUser.email ?? "";
+  const invite = await findInviteByEmail(email);
+  const role = invite?.role ?? "family";
+
   const newUser: AppUser = {
     uid: firebaseUser.uid,
-    email: firebaseUser.email ?? "",
-    role: "family",
+    email,
+    role,
     ...(firebaseUser.displayName && { displayName: firebaseUser.displayName }),
   };
   await setDoc(ref, newUser);
+
+  // Consume the invite so it cannot be reused
+  if (invite) {
+    await deleteInvite(invite.id);
+  }
+
   return newUser;
 }
 
@@ -67,7 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canEdit = isOwner || isFamily;
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, isOwner, isFamily, canEdit }}>
+    <AuthContext.Provider
+      value={{ user, loading, signIn, signOut, isOwner, isFamily, canEdit }}
+    >
       {children}
     </AuthContext.Provider>
   );
