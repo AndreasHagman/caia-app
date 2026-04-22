@@ -129,7 +129,7 @@ export default function TricksPage() {
           open={!!repositionTrick}
           onOpenChange={(open) => { if (!open) setRepositionTrick(null); }}
           imageUrl={repositionImageUrl}
-          heightVh={25}
+          heightVh={heightPatches[repositionTrick.id] ?? repositionTrick.coverHeightVh ?? 30}
           focalX={coverPatches[repositionTrick.id]?.focalX ?? repositionTrick.coverFocalX ?? 50}
           focalY={coverPatches[repositionTrick.id]?.focalY ?? repositionTrick.coverFocalY ?? 50}
           onCommit={(x, y) => {
