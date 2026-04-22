@@ -25,6 +25,7 @@ export interface Trick {
   progress: number;
   progressOverride: boolean;
   mediaUrls: string[];
+  mediaHeightVh?: number;
   coverImageUrl?: string | null;
   coverFocalX?: number;
   coverFocalY?: number;

@@ -71,7 +71,11 @@ export default function TrickDetailPage({ params }: { params: Promise<{ id: stri
       {trick.mediaUrls.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           {trick.mediaUrls.map((url) => (
-            <div key={url} className="rounded-2xl overflow-hidden bg-sage-50 aspect-video">
+            <div
+              key={url}
+              className="rounded-2xl overflow-hidden bg-sage-50"
+              style={{ height: `${trick.mediaHeightVh ?? 40}vh` }}
+            >
               {isVideo(url) ? (
                 <video
                   src={url}
