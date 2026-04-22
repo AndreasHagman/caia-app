@@ -25,8 +25,9 @@ export interface Trick {
   progress: number;
   progressOverride: boolean;
   mediaUrls: string[];
-  mediaHeightVh?: number;
+  mediaSettings?: Record<string, { focalX?: number; focalY?: number; heightVh?: number }>;
   coverImageUrl?: string | null;
+  coverHeightVh?: number;
   coverFocalX?: number;
   coverFocalY?: number;
   createdBy: string;

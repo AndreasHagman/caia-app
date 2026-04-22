@@ -4,12 +4,19 @@ import { useTrick } from "@/hooks/useTrick";
 import { TrickStatusBadge } from "@/components/tricks/TrickStatusBadge";
 import { TrickProgress } from "@/components/tricks/TrickProgress";
 import { ChecklistEditor } from "@/components/tricks/ChecklistEditor";
-import { computeProgress } from "@/lib/tricks";
+import { ImageRepositionSheet } from "@/components/about/ImageRepositionSheet";
+import { computeProgress, updateTrick } from "@/lib/tricks";
+import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Move } from "lucide-react";
 import Link from "next/link";
-import { use } from "react";
+import { use, useEffect, useRef, useState } from "react";
+
+type MediaSettings = { focalX: number; focalY: number; heightVh: number };
+type SettingsMap = Record<string, MediaSettings>;
+
+const DEFAULT_SETTINGS: MediaSettings = { focalX: 50, focalY: 50, heightVh: 40 };
 
 function isVideo(url: string): boolean {
   return url.match(/\.(mp4|mov|webm|avi)/i) !== null;
@@ -18,6 +25,26 @@ function isVideo(url: string): boolean {
 export default function TrickDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { trick, loading } = useTrick(id);
+  const { isOwner } = useAuth();
+
+  const [mediaSettings, setMediaSettings] = useState<SettingsMap>({});
+  const [repositionUrl, setRepositionUrl] = useState<string | null>(null);
+  const settingsRef = useRef<SettingsMap>({});
+  settingsRef.current = mediaSettings;
+
+  useEffect(() => {
+    if (!trick) return;
+    const init: SettingsMap = {};
+    trick.mediaUrls.forEach((url) => {
+      const s = trick.mediaSettings?.[url];
+      init[url] = { focalX: s?.focalX ?? 50, focalY: s?.focalY ?? 50, heightVh: s?.heightVh ?? 40 };
+    });
+    setMediaSettings(init);
+  }, [trick?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function save(updated: SettingsMap) {
+    await updateTrick(id, { mediaSettings: updated });
+  }
 
   if (loading) {
     return (
@@ -45,6 +72,8 @@ export default function TrickDetailPage({ params }: { params: Promise<{ id: stri
     trick.progressOverride ? trick.progress : undefined
   );
 
+  const repositionSettings = repositionUrl ? (mediaSettings[repositionUrl] ?? DEFAULT_SETTINGS) : null;
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <Button asChild variant="ghost" className="mb-6 -ml-2">
@@ -70,24 +99,74 @@ export default function TrickDetailPage({ params }: { params: Promise<{ id: stri
       {/* Media grid */}
       {trick.mediaUrls.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          {trick.mediaUrls.map((url) => (
-            <div
-              key={url}
-              className="rounded-2xl overflow-hidden bg-sage-50"
-              style={{ height: `${trick.mediaHeightVh ?? 40}vh` }}
-            >
-              {isVideo(url) ? (
-                <video
-                  src={url}
-                  controls
-                  className="w-full h-full object-cover"
-                  preload="metadata"
-                />
-              ) : (
-                <img src={url} alt={trick.name} className="w-full h-full object-cover" />
-              )}
-            </div>
-          ))}
+          {trick.mediaUrls.map((url) => {
+            const s = mediaSettings[url] ?? DEFAULT_SETTINGS;
+            return (
+              <div key={url} className="space-y-1.5">
+                <div
+                  className="relative rounded-2xl overflow-hidden bg-sage-50"
+                  style={{ height: `${s.heightVh}vh` }}
+                >
+                  {isVideo(url) ? (
+                    <video
+                      src={url}
+                      controls
+                      className="w-full h-full object-cover"
+                      preload="metadata"
+                    />
+                  ) : (
+                    <img
+                      src={url}
+                      alt={trick.name}
+                      className="w-full h-full object-cover"
+                      style={{ objectPosition: `${s.focalX}% ${s.focalY}%` }}
+                    />
+                  )}
+                  {isOwner && !isVideo(url) && (
+                    <button
+                      className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 hover:bg-black/80 transition-colors"
+                      onClick={() => setRepositionUrl(url)}
+                    >
+                      <Move className="w-3 h-3" />
+                      Reposition
+                    </button>
+                  )}
+                </div>
+
+                {isOwner && (
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-xs text-muted-foreground shrink-0">S</span>
+                    <input
+                      type="range"
+                      min={15}
+                      max={80}
+                      step={5}
+                      value={s.heightVh}
+                      onChange={(e) => {
+                        const heightVh = Number(e.target.value);
+                        setMediaSettings((prev) => ({
+                          ...prev,
+                          [url]: { ...prev[url] ?? DEFAULT_SETTINGS, heightVh },
+                        }));
+                      }}
+                      onPointerUp={(e) => {
+                        const heightVh = Number((e.target as HTMLInputElement).value);
+                        const curr = settingsRef.current;
+                        save({ ...curr, [url]: { ...curr[url] ?? DEFAULT_SETTINGS, heightVh } });
+                      }}
+                      onTouchEnd={(e) => {
+                        const heightVh = Number((e.target as HTMLInputElement).value);
+                        const curr = settingsRef.current;
+                        save({ ...curr, [url]: { ...curr[url] ?? DEFAULT_SETTINGS, heightVh } });
+                      }}
+                      className="flex-1 accent-sage-600"
+                    />
+                    <span className="text-xs text-muted-foreground shrink-0">L</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -97,6 +176,24 @@ export default function TrickDetailPage({ params }: { params: Promise<{ id: stri
           <h2 className="text-lg font-semibold mb-3">Training checklist</h2>
           <ChecklistEditor items={trick.checklist} onChange={() => {}} readOnly />
         </div>
+      )}
+
+      {repositionUrl && repositionSettings && (
+        <ImageRepositionSheet
+          open={!!repositionUrl}
+          onOpenChange={(open) => { if (!open) setRepositionUrl(null); }}
+          imageUrl={repositionUrl}
+          heightVh={repositionSettings.heightVh}
+          focalX={repositionSettings.focalX}
+          focalY={repositionSettings.focalY}
+          onCommit={(x, y) => {
+            const curr = settingsRef.current;
+            const updated = { ...curr, [repositionUrl]: { ...curr[repositionUrl] ?? DEFAULT_SETTINGS, focalX: x, focalY: y } };
+            setMediaSettings(updated);
+            save(updated);
+            setRepositionUrl(null);
+          }}
+        />
       )}
     </div>
   );

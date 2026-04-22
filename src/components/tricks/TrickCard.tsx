@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import type { Trick } from "@/types";
 import { computeProgress } from "@/lib/tricks";
+import { cn } from "@/lib/utils";
 import { TrickStatusBadge } from "./TrickStatusBadge";
 import { TrickProgress } from "./TrickProgress";
 import Link from "next/link";
@@ -26,7 +27,10 @@ export function TrickCard({ trick, href }: Props) {
     <Link href={href}>
       <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
         {thumbnail ? (
-          <div className="relative aspect-video bg-sage-100 overflow-hidden">
+          <div
+            className={cn("relative bg-sage-100 overflow-hidden", !trick.coverHeightVh && "aspect-video")}
+            style={trick.coverHeightVh ? { height: `${trick.coverHeightVh}vh` } : undefined}
+          >
             <Image
               src={thumbnail}
               alt={trick.name}

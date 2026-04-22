@@ -36,7 +36,6 @@ export function TrickForm({ trick, onSubmit, submitLabel = "Save" }: Props) {
   const [status, setStatus] = useState<TrickStatus>(trick?.status ?? "not_started");
   const [checklist, setChecklist] = useState<ChecklistItem[]>(trick?.checklist ?? []);
   const [mediaUrls, setMediaUrls] = useState<string[]>(trick?.mediaUrls ?? []);
-  const [mediaHeightVh, setMediaHeightVh] = useState(trick?.mediaHeightVh ?? 40);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(trick?.coverImageUrl ?? null);
   const [coverFocalX, setCoverFocalX] = useState(trick?.coverFocalX ?? 50);
   const [coverFocalY, setCoverFocalY] = useState(trick?.coverFocalY ?? 50);
@@ -58,7 +57,6 @@ export function TrickForm({ trick, onSubmit, submitLabel = "Save" }: Props) {
       status,
       checklist,
       mediaUrls,
-      mediaHeightVh,
       coverImageUrl,
       coverFocalX,
       coverFocalY,
@@ -154,20 +152,6 @@ export function TrickForm({ trick, onSubmit, submitLabel = "Save" }: Props) {
               mediaUrls={mediaUrls}
               onUrlsChange={setMediaUrls}
             />
-            <div className="flex items-center gap-3 pt-1">
-              <span className="text-xs text-muted-foreground shrink-0">Shorter</span>
-              <input
-                type="range"
-                min={15}
-                max={80}
-                step={5}
-                value={mediaHeightVh}
-                onChange={(e) => setMediaHeightVh(Number(e.target.value))}
-                className="flex-1 accent-sage-600"
-              />
-              <span className="text-xs text-muted-foreground shrink-0">Taller</span>
-              <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{mediaHeightVh}vh</span>
-            </div>
           </div>
 
           <Separator />
