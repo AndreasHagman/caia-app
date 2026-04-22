@@ -11,6 +11,10 @@ import { ChecklistEditor } from "./ChecklistEditor";
 import { MediaUploader } from "./MediaUploader";
 import { computeProgress } from "@/lib/tricks";
 import { TrickProgress } from "./TrickProgress";
+import { ImageRepositionSheet } from "@/components/about/ImageRepositionSheet";
+import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 
 const STATUS_OPTIONS: { value: TrickStatus; label: string }[] = [
@@ -32,6 +36,10 @@ export function TrickForm({ trick, onSubmit, submitLabel = "Save" }: Props) {
   const [status, setStatus] = useState<TrickStatus>(trick?.status ?? "not_started");
   const [checklist, setChecklist] = useState<ChecklistItem[]>(trick?.checklist ?? []);
   const [mediaUrls, setMediaUrls] = useState<string[]>(trick?.mediaUrls ?? []);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(trick?.coverImageUrl ?? null);
+  const [coverFocalX, setCoverFocalX] = useState(trick?.coverFocalX ?? 50);
+  const [coverFocalY, setCoverFocalY] = useState(trick?.coverFocalY ?? 50);
+  const [repositionOpen, setRepositionOpen] = useState(false);
   const [progressOverride, setProgressOverride] = useState(trick?.progressOverride ?? false);
   const [manualProgress, setManualProgress] = useState(trick?.progress ?? 0);
   const [saving, setSaving] = useState(false);
@@ -49,6 +57,9 @@ export function TrickForm({ trick, onSubmit, submitLabel = "Save" }: Props) {
       status,
       checklist,
       mediaUrls,
+      coverImageUrl,
+      coverFocalX,
+      coverFocalY,
       progressOverride,
       progress: progressOverride ? manualProgress : computeProgress(checklist),
     });
@@ -142,6 +153,19 @@ export function TrickForm({ trick, onSubmit, submitLabel = "Save" }: Props) {
               onUrlsChange={setMediaUrls}
             />
           </div>
+
+          <Separator />
+          <CoverImageSection
+            mediaUrls={mediaUrls}
+            coverImageUrl={coverImageUrl}
+            coverFocalX={coverFocalX}
+            coverFocalY={coverFocalY}
+            repositionOpen={repositionOpen}
+            onSelectCover={(url) => { setCoverImageUrl(url); setCoverFocalX(50); setCoverFocalY(50); }}
+            onOpenReposition={() => setRepositionOpen(true)}
+            onRepositionChange={setRepositionOpen}
+            onCommitFocal={(x, y) => { setCoverFocalX(x); setCoverFocalY(y); }}
+          />
         </>
       )}
 
@@ -153,5 +177,77 @@ export function TrickForm({ trick, onSubmit, submitLabel = "Save" }: Props) {
         {saving ? "Saving…" : submitLabel}
       </Button>
     </form>
+  );
+}
+
+interface CoverImageSectionProps {
+  mediaUrls: string[];
+  coverImageUrl: string | null;
+  coverFocalX: number;
+  coverFocalY: number;
+  repositionOpen: boolean;
+  onSelectCover: (url: string) => void;
+  onOpenReposition: () => void;
+  onRepositionChange: (open: boolean) => void;
+  onCommitFocal: (x: number, y: number) => void;
+}
+
+function CoverImageSection({
+  mediaUrls,
+  coverImageUrl,
+  coverFocalX,
+  coverFocalY,
+  repositionOpen,
+  onSelectCover,
+  onOpenReposition,
+  onRepositionChange,
+  onCommitFocal,
+}: CoverImageSectionProps) {
+  const imageUrls = mediaUrls.filter((u) => u.match(/\.(jpg|jpeg|png|webp|gif)/i));
+
+  return (
+    <div className="space-y-3">
+      <Label>Cover image</Label>
+      {imageUrls.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Upload images above to select a cover.</p>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          {imageUrls.map((url) => (
+            <button
+              key={url}
+              type="button"
+              onClick={() => onSelectCover(url)}
+              className={cn(
+                "relative aspect-video overflow-hidden rounded-md ring-2 transition-all",
+                coverImageUrl === url ? "ring-sage-600" : "ring-transparent hover:ring-sage-300"
+              )}
+            >
+              <Image src={url} alt="" fill className="object-cover" />
+              {coverImageUrl === url && (
+                <div className="absolute inset-0 bg-sage-600/20 flex items-center justify-center">
+                  <Check className="text-white w-5 h-5 drop-shadow" />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      {coverImageUrl && (
+        <>
+          <Button type="button" variant="outline" size="sm" onClick={onOpenReposition}>
+            Reposition
+          </Button>
+          <ImageRepositionSheet
+            open={repositionOpen}
+            onOpenChange={onRepositionChange}
+            imageUrl={coverImageUrl}
+            heightVh={25}
+            focalX={coverFocalX}
+            focalY={coverFocalY}
+            onCommit={onCommitFocal}
+          />
+        </>
+      )}
+    </div>
   );
 }

@@ -16,9 +16,11 @@ export function TrickCard({ trick, href }: Props) {
     trick.checklist,
     trick.progressOverride ? trick.progress : undefined
   );
-  const thumbnail = trick.mediaUrls.find((u) =>
-    u.match(/\.(jpg|jpeg|png|webp|gif)/i)
-  );
+  const thumbnail =
+    trick.coverImageUrl ??
+    trick.mediaUrls.find((u) => u.match(/\.(jpg|jpeg|png|webp|gif)/i));
+  const focalX = trick.coverFocalX ?? 50;
+  const focalY = trick.coverFocalY ?? 50;
 
   return (
     <Link href={href}>
@@ -30,6 +32,7 @@ export function TrickCard({ trick, href }: Props) {
               alt={trick.name}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
+              style={{ objectPosition: `${focalX}% ${focalY}%` }}
             />
           </div>
         ) : (
