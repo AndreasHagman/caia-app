@@ -1,13 +1,15 @@
 "use client";
 
 import { createInvite, deleteInvite, getInvites, type PendingInvite } from "@/lib/invites";
+import { getUsers } from "@/lib/users";
 import { useAuth } from "@/contexts/AuthContext";
-import type { UserRole } from "@/types";
+import type { AppUser, UserRole } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Trash2, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,6 +18,7 @@ import { toast } from "sonner";
 export default function UsersSettingsPage() {
   const { isOwner } = useAuth();
   const router = useRouter();
+  const [users, setUsers] = useState<AppUser[]>([]);
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("family");
@@ -26,7 +29,10 @@ export default function UsersSettingsPage() {
       router.push("/dashboard");
       return;
     }
-    getInvites().then(setInvites);
+    Promise.all([getUsers(), getInvites()]).then(([u, i]) => {
+      setUsers(u);
+      setInvites(i);
+    });
   }, [isOwner, router]);
 
   async function handleInvite(e: React.FormEvent) {
@@ -76,6 +82,41 @@ export default function UsersSettingsPage() {
         Invite family members by email. They will get the assigned role automatically when they sign
         in for the first time.
       </p>
+
+      <h2 className="text-lg font-semibold mb-3">Members</h2>
+      {users.length === 0 ? (
+        <p className="text-muted-foreground text-sm mb-8">No users found.</p>
+      ) : (
+        <div className="space-y-2 mb-8">
+          {users
+            .sort((a, b) => {
+              if (a.role === "owner" && b.role !== "owner") return -1;
+              if (a.role !== "owner" && b.role === "owner") return 1;
+              return (a.displayName ?? a.email).localeCompare(b.displayName ?? b.email);
+            })
+            .map((u) => (
+              <div
+                key={u.uid}
+                className="flex items-center justify-between bg-white rounded-2xl p-3 border border-cream-200 shadow-sm"
+              >
+                <div>
+                  {u.displayName && <p className="text-sm font-medium">{u.displayName}</p>}
+                  <p className={u.displayName ? "text-xs text-muted-foreground" : "text-sm font-medium"}>
+                    {u.email}
+                  </p>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className={u.role === "owner" ? "bg-sage-100 text-sage-700" : ""}
+                >
+                  {u.role}
+                </Badge>
+              </div>
+            ))}
+        </div>
+      )}
+
+      <Separator className="mb-8" />
 
       <form onSubmit={handleInvite} className="space-y-4 mb-10">
         <div className="space-y-1.5">
