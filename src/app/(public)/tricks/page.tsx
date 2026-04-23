@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { updateTrick } from "@/lib/tricks";
 import type { Trick, TrickStatus } from "@/types";
 import { Move } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 const FILTER_OPTIONS: { value: TrickStatus | "all"; label: string }[] = [
@@ -27,6 +28,7 @@ export default function TricksPage() {
   const { tricks, loading } = useTricks();
   const { isOwner } = useAuth();
   const [filter, setFilter] = useState<TrickStatus | "all">("all");
+  const [isEditMode, setIsEditMode] = useState(false);
   const [repositionTrick, setRepositionTrick] = useState<Trick | null>(null);
   const [coverPatches, setCoverPatches] = useState<Record<string, { focalX: number; focalY: number }>>({});
   const [heightPatches, setHeightPatches] = useState<Record<string, number>>({});
@@ -37,7 +39,19 @@ export default function TricksPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
-      <h1 className="text-4xl font-bold mb-2">Tricks</h1>
+      <div className="flex items-start justify-between mb-2">
+        <h1 className="text-4xl font-bold">Tricks</h1>
+        {isOwner && !loading && (
+          <Button
+            size="sm"
+            variant={isEditMode ? "default" : "outline"}
+            className={isEditMode ? "bg-sage-600 hover:bg-sage-700" : ""}
+            onClick={() => setIsEditMode((v) => !v)}
+          >
+            {isEditMode ? "Done" : "Edit layout"}
+          </Button>
+        )}
+      </div>
       <p className="text-muted-foreground mb-8">Everything Caia has learned and is working on.</p>
 
       {/* Filter pills */}
@@ -92,7 +106,7 @@ export default function TricksPage() {
                     </button>
                   )}
                 </div>
-                {isOwner && thumbnail && (
+                {isOwner && isEditMode && thumbnail && (
                   <div className="flex items-center gap-2 px-1">
                     <span className="text-xs text-muted-foreground shrink-0">S</span>
                     <input

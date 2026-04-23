@@ -29,6 +29,7 @@ export default function TrickDetailPage({ params }: { params: Promise<{ id: stri
 
   const [mediaSettings, setMediaSettings] = useState<SettingsMap>({});
   const [repositionUrl, setRepositionUrl] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const settingsRef = useRef<SettingsMap>({});
   settingsRef.current = mediaSettings;
 
@@ -98,7 +99,20 @@ export default function TrickDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Media grid */}
       {trick.mediaUrls.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <div className="mb-8">
+          {isOwner && (
+            <div className="flex justify-end mb-3">
+              <Button
+                size="sm"
+                variant={isEditMode ? "default" : "outline"}
+                className={isEditMode ? "bg-sage-600 hover:bg-sage-700" : ""}
+                onClick={() => setIsEditMode((v) => !v)}
+              >
+                {isEditMode ? "Done" : "Edit layout"}
+              </Button>
+            </div>
+          )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {trick.mediaUrls.map((url) => {
             const s = mediaSettings[url] ?? DEFAULT_SETTINGS;
             return (
@@ -133,7 +147,7 @@ export default function TrickDetailPage({ params }: { params: Promise<{ id: stri
                   )}
                 </div>
 
-                {isOwner && (
+                {isOwner && isEditMode && (
                   <div className="flex items-center gap-2 px-1">
                     <span className="text-xs text-muted-foreground shrink-0">S</span>
                     <input
@@ -167,6 +181,7 @@ export default function TrickDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             );
           })}
+        </div>
         </div>
       )}
 

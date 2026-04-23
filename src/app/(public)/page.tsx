@@ -23,6 +23,7 @@ export default function LandingPage() {
   const [focalY, setFocalY] = useState(50);
   const [editorOpen, setEditorOpen] = useState(false);
   const [repositionOpen, setRepositionOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     getHomeSettings().then((s) => {
@@ -110,7 +111,7 @@ export default function LandingPage() {
       )}
 
       {/* Owner controls */}
-      {isOwner && (
+      {isOwner && isEditMode && (
         <div className="flex items-center gap-3 mb-14 px-1">
           <span className="text-xs text-muted-foreground shrink-0">Shorter</span>
           <input
@@ -126,6 +127,16 @@ export default function LandingPage() {
           />
           <span className="text-xs text-muted-foreground shrink-0">Taller</span>
           <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{heightVh}vh</span>
+          <Button size="sm" className="bg-sage-600 hover:bg-sage-700 shrink-0" onClick={() => setIsEditMode(false)}>
+            Done
+          </Button>
+        </div>
+      )}
+      {isOwner && !isEditMode && (
+        <div className="flex justify-end mb-14 px-1">
+          <Button size="sm" variant="outline" onClick={() => setIsEditMode(true)}>
+            Edit layout
+          </Button>
         </div>
       )}
 

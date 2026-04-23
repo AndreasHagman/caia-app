@@ -29,6 +29,7 @@ export default function AboutPage() {
   const [focalY, setFocalY] = useState(50);
   const [editorOpen, setEditorOpen] = useState(false);
   const [repositionOpen, setRepositionOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     getAboutSettings().then((s) => {
@@ -41,7 +42,19 @@ export default function AboutPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
-      <h1 className="text-4xl font-bold mb-2">About Caia</h1>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-4xl font-bold">About Caia</h1>
+        {isOwner && imageUrl && (
+          <Button
+            size="sm"
+            variant={isEditMode ? "default" : "outline"}
+            className={isEditMode ? "bg-sage-600 hover:bg-sage-700" : ""}
+            onClick={() => setIsEditMode((v) => !v)}
+          >
+            {isEditMode ? "Done" : "Edit layout"}
+          </Button>
+        )}
+      </div>
       <p className="text-muted-foreground mb-10">{calculateAge()}</p>
 
       <Card className="rounded-3xl shadow-sm mb-2 overflow-hidden">
@@ -96,7 +109,7 @@ export default function AboutPage() {
         )}
 
         {/* Owner height control */}
-        {isOwner && (
+        {isOwner && isEditMode && (
           <div className="flex items-center gap-3 px-4 py-3 border-t border-cream-200 bg-cream-50">
             <span className="text-xs text-muted-foreground shrink-0">Shorter</span>
             <input
