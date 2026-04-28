@@ -13,9 +13,7 @@ interface Props {
 }
 
 export function HikeCard({ hike, href, showActions = false, onDelete }: Props) {
-  const thumbnail =
-    hike.coverImageUrl ??
-    hike.mediaUrls.find((u) => u.match(/\.(jpg|jpeg|png|webp|gif)/i));
+  const thumbnail = hike.coverImageUrl ?? hike.mediaUrls[0] ?? null;
   const focalX = hike.coverFocalX ?? 50;
   const focalY = hike.coverFocalY ?? 50;
 
