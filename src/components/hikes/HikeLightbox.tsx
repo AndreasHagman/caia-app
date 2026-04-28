@@ -58,6 +58,9 @@ export function HikeLightbox({
           <DialogPrimitive.Title className="sr-only">
             Photo {currentIndex + 1} of {images.length}
           </DialogPrimitive.Title>
+          <DialogPrimitive.Description className="sr-only">
+            Browse hike photos
+          </DialogPrimitive.Description>
 
           {/* Counter */}
           <div className="absolute top-4 right-14 text-white/80 text-sm font-medium z-10">
@@ -88,6 +91,7 @@ export function HikeLightbox({
               }
             >
               <ChevronLeft className="w-6 h-6" />
+              <span className="sr-only">Previous photo</span>
             </button>
           )}
 
@@ -100,6 +104,7 @@ export function HikeLightbox({
               }
             >
               <ChevronRight className="w-6 h-6" />
+              <span className="sr-only">Next photo</span>
             </button>
           )}
         </DialogPrimitive.Content>

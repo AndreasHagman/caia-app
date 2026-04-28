@@ -1,6 +1,5 @@
 import type { Hike } from "@/types";
-import { formatDate } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MapPin, Route, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";

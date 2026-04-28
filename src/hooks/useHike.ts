@@ -16,5 +16,5 @@ export function useHike(id: string) {
       .finally(() => setLoading(false));
   }, [id]);
 
-  return { hike, loading, error };
+  return { hike, loading, error, setHike };
 }
