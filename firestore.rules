@@ -17,7 +17,7 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read: if isAuthenticated() && request.auth.uid == uid;
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isOwner());
       allow create: if isAuthenticated() && request.auth.uid == uid;
       allow update, delete: if isOwner();
     }
@@ -35,7 +35,7 @@ service cloud.firestore {
     }
 
     match /hikes/{hikeId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create, update: if canEdit();
       allow delete: if isOwner();
     }
