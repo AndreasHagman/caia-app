@@ -52,6 +52,11 @@ export interface Hike {
   distance?: number;
   notes: string;
   mediaUrls: string[];
+  mediaSettings?: Record<string, { focalX?: number; focalY?: number; heightVh?: number }>;
+  coverImageUrl?: string | null;
+  coverHeightVh?: number;
+  coverFocalX?: number;
+  coverFocalY?: number;
   date: Date;
   createdBy: string;
   createdAt: Date;

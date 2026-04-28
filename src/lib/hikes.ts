@@ -5,6 +5,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -25,6 +26,12 @@ export async function getHikes(): Promise<Hike[]> {
   const q = query(collection(db, "hikes"), orderBy("date", "desc"));
   const snap = await getDocs(q);
   return snap.docs.map((d) => fromFirestore(d.id, d.data()));
+}
+
+export async function getHike(id: string): Promise<Hike | null> {
+  const snap = await getDoc(doc(db, "hikes", id));
+  if (!snap.exists()) return null;
+  return fromFirestore(snap.id, snap.data());
 }
 
 export async function createHike(
