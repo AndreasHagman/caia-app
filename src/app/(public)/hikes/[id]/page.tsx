@@ -316,7 +316,7 @@ export default function HikeDetailPage({
       )}
 
       {/* Cover reposition */}
-      {coverImage && (
+      {coverImage && repositionCover && (
         <ImageRepositionSheet
           open={repositionCover}
           onOpenChange={(open) => {
