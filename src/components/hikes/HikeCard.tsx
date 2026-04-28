@@ -1,26 +1,39 @@
 import type { Hike } from "@/types";
 import { formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MapPin, Route, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 interface Props {
   hike: Hike;
+  href?: string;
   showActions?: boolean;
   onDelete?: (id: string) => void;
 }
 
-export function HikeCard({ hike, showActions = false, onDelete }: Props) {
-  const thumbnail = hike.mediaUrls[0];
+export function HikeCard({ hike, href, showActions = false, onDelete }: Props) {
+  const thumbnail =
+    hike.coverImageUrl ??
+    hike.mediaUrls.find((u) => u.match(/\.(jpg|jpeg|png|webp|gif)/i));
+  const focalX = hike.coverFocalX ?? 50;
+  const focalY = hike.coverFocalY ?? 50;
 
-  return (
+  const card = (
     <div className="bg-white rounded-2xl shadow-sm border border-cream-200 overflow-hidden">
       {thumbnail && (
-        <div className="aspect-video bg-sage-50 overflow-hidden">
+        <div
+          className={cn(
+            "relative bg-sage-50 overflow-hidden",
+            !hike.coverHeightVh && "aspect-video"
+          )}
+          style={hike.coverHeightVh ? { height: `${hike.coverHeightVh}vh` } : undefined}
+        >
           <img
             src={thumbnail}
             alt={hike.title}
-            className="w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ objectPosition: `${focalX}% ${focalY}%` }}
           />
         </div>
       )}
@@ -68,4 +81,13 @@ export function HikeCard({ hike, showActions = false, onDelete }: Props) {
       </div>
     </div>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block hover:shadow-md transition-shadow rounded-2xl">
+        {card}
+      </Link>
+    );
+  }
+  return card;
 }
