@@ -20,7 +20,7 @@ export function SectionCard({ sectionKey, data, onEdit, isOwner }: Props) {
       {data.images.length > 0 && (
         <div className={data.images.length === 1 ? "relative w-full h-48 bg-sage-100" : "grid grid-cols-2 gap-2 h-48"}>
           {data.images.map((img, index) => (
-            <div key={index} className="relative overflow-hidden bg-sage-100">
+            <div key={index} className="relative h-full overflow-hidden bg-sage-100">
               <img
                 src={img.url}
                 alt={`${data.title} ${index + 1}`}
