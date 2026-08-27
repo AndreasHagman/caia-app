@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SectionData, SectionKey, updateSection, ImageData } from "@/lib/dogsitter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -33,8 +33,20 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
   const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
+  // Track current preview URLs for cleanup (avoids stale closure issue)
+  const previewUrlsRef = useRef<(string | null)[]>([]);
+
+  useEffect(() => {
+    previewUrlsRef.current = previewUrls;
+  }, [previewUrls]);
+
   // Reset form when dialog opens with new data
   useEffect(() => {
+    // Revoke existing preview URLs before resetting
+    previewUrls.forEach(url => {
+      if (url) URL.revokeObjectURL(url);
+    });
+
     setTitle(initialData.title);
     setContent(initialData.content);
     setImages(initialData.images);
@@ -43,10 +55,10 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
     setRepositioningIndex(null);
   }, [initialData]);
 
-  // Cleanup blob URL to prevent memory leak
+  // Cleanup blob URLs on unmount to prevent memory leak
   useEffect(() => {
     return () => {
-      previewUrls.forEach(url => {
+      previewUrlsRef.current.forEach(url => {
         if (url) URL.revokeObjectURL(url);
       });
     };
