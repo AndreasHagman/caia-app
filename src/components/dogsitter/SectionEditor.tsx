@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { SectionData, SectionKey, updateSection } from "@/lib/dogsitter";
+import { SectionData, SectionKey, updateSection, ImageData } from "@/lib/dogsitter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,8 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { toast } from "sonner";
 import { Upload, X } from "lucide-react";
 import imageCompression from "browser-image-compression";
+import { ImageRepositionSheet } from "@/components/about/ImageRepositionSheet";
+import { Move } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -24,9 +26,10 @@ interface Props {
 export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onSave }: Props) {
   const [title, setTitle] = useState(initialData.title);
   const [content, setContent] = useState(initialData.content);
-  const [imageUrl, setImageUrl] = useState(initialData.imageUrl);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [images, setImages] = useState<ImageData[]>(initialData.images);
+  const [imageFiles, setImageFiles] = useState<(File | null)[]>([null, null]);
+  const [previewUrls, setPreviewUrls] = useState<(string | null)[]>([null, null]);
+  const [repositioningIndex, setRepositioningIndex] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -35,21 +38,22 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
   useEffect(() => {
     setTitle(initialData.title);
     setContent(initialData.content);
-    setImageUrl(initialData.imageUrl);
-    setImageFile(null);
-    setPreviewUrl(null);
+    setImages(initialData.images);
+    setImageFiles([null, null]);
+    setPreviewUrls([null, null]);
+    setRepositioningIndex(null);
   }, [initialData]);
 
   // Cleanup blob URL to prevent memory leak
   useEffect(() => {
     return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
+      previewUrls.forEach(url => {
+        if (url) URL.revokeObjectURL(url);
+      });
     };
-  }, [previewUrl]);
+  }, [previewUrls]);
 
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileSelect(slotIndex: number, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -76,21 +80,50 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
         useWebWorker: true,
       });
 
-      setImageFile(compressed);
-      setPreviewUrl(URL.createObjectURL(compressed));
+      // Update state for this slot
+      const newFiles = [...imageFiles];
+      newFiles[slotIndex] = compressed;
+      setImageFiles(newFiles);
+
+      const newPreviews = [...previewUrls];
+      if (newPreviews[slotIndex]) {
+        URL.revokeObjectURL(newPreviews[slotIndex]!);
+      }
+      newPreviews[slotIndex] = URL.createObjectURL(compressed);
+      setPreviewUrls(newPreviews);
     } catch (err) {
       console.error("Image processing error:", err);
       toast.error("Failed to process image");
     }
   }
 
-  function handleRemoveImage() {
-    setImageUrl(null);
-    setImageFile(null);
-    setPreviewUrl(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+  function handleRemoveImage(slotIndex: number) {
+    const newImages = images.filter((_, i) => i !== slotIndex);
+    setImages(newImages);
+
+    const newFiles = [...imageFiles];
+    newFiles[slotIndex] = null;
+    setImageFiles(newFiles);
+
+    const newPreviews = [...previewUrls];
+    if (newPreviews[slotIndex]) {
+      URL.revokeObjectURL(newPreviews[slotIndex]!);
     }
+    newPreviews[slotIndex] = null;
+    setPreviewUrls(newPreviews);
+  }
+
+  function handleRepositionCommit(x: number, y: number) {
+    if (repositioningIndex === null) return;
+
+    const updated = [...images];
+    updated[repositioningIndex] = {
+      ...updated[repositioningIndex],
+      focalX: x,
+      focalY: y,
+    };
+    setImages(updated);
+    setRepositioningIndex(null);
   }
 
   async function handleSave() {
@@ -98,38 +131,49 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
     setUploadProgress(null);
 
     try {
-      let finalImageUrl = imageUrl;
+      const finalImages: ImageData[] = [];
 
-      // Upload new image if selected
-      if (imageFile) {
-        const storagePath = `dogsitter/${sectionKey}.jpg`;
-        const storageRef = ref(storage, storagePath);
-        const uploadTask = uploadBytesResumable(storageRef, imageFile, {
-          contentType: "image/jpeg",
-        });
+      // Process each slot
+      for (let i = 0; i < 2; i++) {
+        if (imageFiles[i]) {
+          // New upload for this slot
+          const storagePath = `dogsitter/${sectionKey}-${i + 1}.jpg`;
+          const storageRef = ref(storage, storagePath);
+          const uploadTask = uploadBytesResumable(storageRef, imageFiles[i]!, {
+            contentType: "image/jpeg",
+          });
 
-        await new Promise<void>((resolve, reject) => {
-          uploadTask.on(
-            "state_changed",
-            (snapshot) => {
-              const progress = Math.round(
-                (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-              );
-              setUploadProgress(progress);
-            },
-            reject,
-            resolve
-          );
-        });
+          await new Promise<void>((resolve, reject) => {
+            uploadTask.on(
+              "state_changed",
+              (snapshot) => {
+                const progress = Math.round(
+                  (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+                );
+                setUploadProgress(progress);
+              },
+              reject,
+              resolve
+            );
+          });
 
-        finalImageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          finalImages.push({
+            url,
+            focalX: 50,
+            focalY: 50,
+          });
+        } else if (images[i]) {
+          // Existing image, preserve it
+          finalImages.push(images[i]);
+        }
       }
 
       // Update Firestore
       await updateSection(sectionKey, {
         title,
         content,
-        imageUrl: finalImageUrl,
+        images: finalImages,
       });
 
       toast.success("Section updated");
@@ -147,14 +191,15 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
   function handleCancel() {
     setTitle(initialData.title);
     setContent(initialData.content);
-    setImageUrl(initialData.imageUrl);
-    setImageFile(null);
-    setPreviewUrl(null);
+    setImages(initialData.images);
+    setImageFiles([null, null]);
+    previewUrls.forEach(url => {
+      if (url) URL.revokeObjectURL(url);
+    });
+    setPreviewUrls([null, null]);
+    setRepositioningIndex(null);
     onOpenChange(false);
   }
-
-  const currentImageUrl = previewUrl || imageUrl;
-  const hasImage = currentImageUrl !== null;
 
   return (
     <Dialog open={open} onOpenChange={isSaving ? undefined : onOpenChange}>
@@ -190,44 +235,79 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
             />
           </div>
 
-          {/* Image */}
+          {/* Images */}
           <div className="space-y-2">
-            <Label>Image (optional)</Label>
-            {hasImage ? (
-              <div className="relative">
-                <img
-                  src={currentImageUrl}
-                  alt="Preview"
-                  className="w-full h-48 object-cover rounded-lg"
-                />
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="absolute top-2 right-2"
-                  onClick={handleRemoveImage}
-                  disabled={isSaving}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isSaving}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Image
-              </Button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
+            <Label>Images (up to 2)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              {[0, 1].map((slotIndex) => {
+                const currentImage = images[slotIndex];
+                const currentPreview = previewUrls[slotIndex];
+                const hasImage = currentImage || currentPreview;
+
+                return (
+                  <div key={slotIndex} className="space-y-2">
+                    {hasImage ? (
+                      <div className="relative">
+                        <img
+                          src={currentPreview || currentImage?.url}
+                          alt={`Preview ${slotIndex + 1}`}
+                          className="w-full h-32 object-cover rounded-lg"
+                          style={
+                            currentImage
+                              ? { objectPosition: `${currentImage.focalX}% ${currentImage.focalY}%` }
+                              : undefined
+                          }
+                        />
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="absolute top-2 right-2"
+                          onClick={() => handleRemoveImage(slotIndex)}
+                          disabled={isSaving}
+                          type="button"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                        {currentImage && (
+                          <div className="flex gap-2 mt-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setRepositioningIndex(slotIndex)}
+                              disabled={isSaving}
+                              type="button"
+                              className="flex-1"
+                            >
+                              <Move className="h-3.5 w-3.5 mr-1.5" />
+                              Reposition
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="h-32 bg-sage-100 rounded-lg flex items-center justify-center">
+                        <Button
+                          variant="outline"
+                          onClick={() => document.getElementById(`file-input-${slotIndex}`)?.click()}
+                          disabled={isSaving}
+                          type="button"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload Image
+                        </Button>
+                      </div>
+                    )}
+                    <input
+                      id={`file-input-${slotIndex}`}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleFileSelect(slotIndex, e)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Upload Progress */}
@@ -259,6 +339,18 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {repositioningIndex !== null && images[repositioningIndex] && (
+        <ImageRepositionSheet
+          open={true}
+          onOpenChange={(open) => !open && setRepositioningIndex(null)}
+          imageUrl={images[repositioningIndex].url}
+          heightVh={24}
+          focalX={images[repositioningIndex].focalX}
+          focalY={images[repositioningIndex].focalY}
+          onCommit={handleRepositionCommit}
+        />
+      )}
     </Dialog>
   );
 }
