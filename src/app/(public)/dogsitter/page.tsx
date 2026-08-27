@@ -6,6 +6,7 @@ import { SectionCard } from "@/components/dogsitter/SectionCard";
 import { SectionEditor } from "@/components/dogsitter/SectionEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 const SECTION_ORDER: SectionKey[] = [
   "feeding",
@@ -63,14 +64,16 @@ export default function DogSitterPage() {
   if (error) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">{error}</p>
-          <button
+        <div className="bg-cream-100 border border-sage-200 rounded-lg p-4">
+          <p className="text-sage-700">{error}</p>
+          <Button
             onClick={loadSettings}
-            className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+            variant="ghost"
+            size="sm"
+            className="mt-2 text-sage-600 hover:text-sage-700"
           >
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
