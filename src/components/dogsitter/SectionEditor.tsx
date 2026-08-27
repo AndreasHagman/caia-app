@@ -40,6 +40,15 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
     setPreviewUrl(null);
   }, [initialData]);
 
+  // Cleanup blob URL to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
