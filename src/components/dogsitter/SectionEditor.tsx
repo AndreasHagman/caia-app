@@ -50,7 +50,7 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
         if (url) URL.revokeObjectURL(url);
       });
     };
-  }, [previewUrls]);
+  }, []);
 
   async function handleFileSelect(slotIndex: number, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -88,8 +88,18 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
       if (newPreviews[slotIndex]) {
         URL.revokeObjectURL(newPreviews[slotIndex]!);
       }
-      newPreviews[slotIndex] = URL.createObjectURL(compressed);
+      const previewUrl = URL.createObjectURL(compressed);
+      newPreviews[slotIndex] = previewUrl;
       setPreviewUrls(newPreviews);
+
+      // Add placeholder ImageData entry for new upload
+      const newImages = [...images];
+      newImages[slotIndex] = {
+        url: previewUrl,
+        focalX: 50,
+        focalY: 50,
+      };
+      setImages(newImages);
     } catch (err) {
       console.error("Image processing error:", err);
       toast.error("Failed to process image");
@@ -97,18 +107,17 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
   }
 
   function handleRemoveImage(slotIndex: number) {
+    // Filter all three arrays in sync to keep indices aligned
     const newImages = images.filter((_, i) => i !== slotIndex);
     setImages(newImages);
 
-    const newFiles = [...imageFiles];
-    newFiles[slotIndex] = null;
+    const newFiles = imageFiles.filter((_, i) => i !== slotIndex);
     setImageFiles(newFiles);
 
-    const newPreviews = [...previewUrls];
-    if (newPreviews[slotIndex]) {
-      URL.revokeObjectURL(newPreviews[slotIndex]!);
+    const newPreviews = previewUrls.filter((_, i) => i !== slotIndex);
+    if (previewUrls[slotIndex]) {
+      URL.revokeObjectURL(previewUrls[slotIndex]!);
     }
-    newPreviews[slotIndex] = null;
     setPreviewUrls(newPreviews);
   }
 
@@ -159,8 +168,8 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
           const url = await getDownloadURL(uploadTask.snapshot.ref);
           finalImages.push({
             url,
-            focalX: 50,
-            focalY: 50,
+            focalX: images[i]?.focalX ?? 50,
+            focalY: images[i]?.focalY ?? 50,
           });
         } else if (images[i]) {
           // Existing image, preserve it
