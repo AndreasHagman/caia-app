@@ -1,10 +1,16 @@
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
+export interface ImageData {
+  url: string;
+  focalX: number;  // 0-100, default 50
+  focalY: number;  // 0-100, default 50
+}
+
 export interface SectionData {
   title: string;
   content: string;
-  imageUrl: string | null;
+  images: ImageData[];  // 0-2 images allowed
 }
 
 export interface DogSitterSettings {
@@ -20,14 +26,41 @@ export interface DogSitterSettings {
 export type SectionKey = keyof DogSitterSettings;
 
 const DEFAULT_SETTINGS: DogSitterSettings = {
-  feeding: { title: "Feeding", content: "", imageUrl: null },
-  walks: { title: "Walks & Exercise", content: "", imageUrl: null },
-  treats: { title: "Treats & Rewards", content: "", imageUrl: null },
-  training: { title: "Training", content: "", imageUrl: null },
-  behavior: { title: "Behavior & Personality", content: "", imageUrl: null },
-  health: { title: "Health & Care", content: "", imageUrl: null },
-  emergency: { title: "Emergency Contacts", content: "", imageUrl: null },
+  feeding: { title: "Feeding", content: "", images: [] },
+  walks: { title: "Walks & Exercise", content: "", images: [] },
+  treats: { title: "Treats & Rewards", content: "", images: [] },
+  training: { title: "Training", content: "", images: [] },
+  behavior: { title: "Behavior & Personality", content: "", images: [] },
+  health: { title: "Health & Care", content: "", images: [] },
+  emergency: { title: "Emergency Contacts", content: "", images: [] },
 };
+
+function migrateSectionData(data: any, defaultSection: SectionData): SectionData {
+  // If already using new format, return as-is
+  if (data.images && Array.isArray(data.images)) {
+    return {
+      title: data.title ?? defaultSection.title,
+      content: data.content ?? defaultSection.content,
+      images: data.images,
+    };
+  }
+
+  // Migrate from old imageUrl format
+  const images: ImageData[] = [];
+  if (data.imageUrl && typeof data.imageUrl === 'string') {
+    images.push({
+      url: data.imageUrl,
+      focalX: 50,
+      focalY: 50,
+    });
+  }
+
+  return {
+    title: data.title ?? defaultSection.title,
+    content: data.content ?? defaultSection.content,
+    images,
+  };
+}
 
 export async function getDogSitterSettings(): Promise<DogSitterSettings> {
   const snap = await getDoc(doc(db, "settings", "dogsitter"));
@@ -36,13 +69,13 @@ export async function getDogSitterSettings(): Promise<DogSitterSettings> {
   }
   const data = snap.data();
   return {
-    feeding: data.feeding ?? DEFAULT_SETTINGS.feeding,
-    walks: data.walks ?? DEFAULT_SETTINGS.walks,
-    treats: data.treats ?? DEFAULT_SETTINGS.treats,
-    training: data.training ?? DEFAULT_SETTINGS.training,
-    behavior: data.behavior ?? DEFAULT_SETTINGS.behavior,
-    health: data.health ?? DEFAULT_SETTINGS.health,
-    emergency: data.emergency ?? DEFAULT_SETTINGS.emergency,
+    feeding: migrateSectionData(data.feeding ?? {}, DEFAULT_SETTINGS.feeding),
+    walks: migrateSectionData(data.walks ?? {}, DEFAULT_SETTINGS.walks),
+    treats: migrateSectionData(data.treats ?? {}, DEFAULT_SETTINGS.treats),
+    training: migrateSectionData(data.training ?? {}, DEFAULT_SETTINGS.training),
+    behavior: migrateSectionData(data.behavior ?? {}, DEFAULT_SETTINGS.behavior),
+    health: migrateSectionData(data.health ?? {}, DEFAULT_SETTINGS.health),
+    emergency: migrateSectionData(data.emergency ?? {}, DEFAULT_SETTINGS.emergency),
   };
 }
 
