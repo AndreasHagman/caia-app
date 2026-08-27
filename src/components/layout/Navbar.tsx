@@ -14,7 +14,7 @@ const publicLinks = [
   { href: "/about", label: "About" },
   { href: "/tricks", label: "Tricks" },
   { href: "/hikes", label: "Hikes" },
-  { href: "/dogsitter", label: "Hundepass" },
+  { href: "/dogsitter", label: "Dog Sitter" },
   { href: "/gallery", label: "Gallery" },
 ];
 
