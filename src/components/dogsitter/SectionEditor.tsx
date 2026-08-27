@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { SectionData, SectionKey, updateSection, ImageData } from "@/lib/dogsitter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,6 @@ export function SectionEditor({ open, onOpenChange, sectionKey, initialData, onS
   const [repositioningIndex, setRepositioningIndex] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form when dialog opens with new data
   useEffect(() => {
